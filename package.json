@@ -1,0 +1,21 @@
+{
+  "name": "swapu-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SwapU - სტუდენტური კურსებისა და ჯგუფების გაცვლის პლატფორმა",
+  "scripts": {
+    "dev": "concurrently -n DB,API,WEB -c cyan,green,magenta \"npm run dev:db\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:db": "npm --prefix server run dev:db",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "postinstall": "npm --prefix server install && npm --prefix client install && npm --prefix server run db:generate",
+    "build": "npm --prefix client run build && npm --prefix server run build",
+    "start": "npx --prefix server prisma db push && npm --prefix server run start",
+    "db:push": "npm --prefix server run db:push",
+    "db:seed": "npm --prefix server run db:seed",
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
