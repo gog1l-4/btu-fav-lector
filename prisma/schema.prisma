@@ -1,0 +1,388 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum ListingStatus {
+  OPEN
+  MATCHED
+  COMPLETED
+  CANCELLED
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum NotificationType {
+  NEW_OFFER
+  OFFER_ACCEPTED
+  OFFER_REJECTED
+  OFFER_CANCELLED
+  SWAP_COMPLETED
+  NEW_MESSAGE
+  SMART_MATCH
+  VERIFICATION_UPDATE
+  SYSTEM
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  DISMISSED
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  MAGIC_LOGIN
+}
+
+model University {
+  id          String        @id @default(cuid())
+  name        String
+  shortName   String        @unique
+  emailDomain String?
+  city        String        @default("თბილისი")
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  faculties   Faculty[]
+  users       User[]
+  courses     Course[]
+  lecturers   Lecturer[]
+  groups      Group[]
+  listings    SwapListing[]
+
+  @@map("universities")
+}
+
+model Faculty {
+  id           String     @id @default(cuid())
+  universityId String
+  name         String
+  degreeLevel  String     @default("ბაკალავრიატი")
+  createdAt    DateTime   @default(now())
+
+  university   University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  users        User[]
+  courses      Course[]
+
+  @@unique([universityId, name])
+  @@map("faculties")
+}
+
+model User {
+  id                        String             @id @default(cuid())
+  firstName                 String
+  lastName                  String
+  email                     String             @unique
+  passwordHash              String
+  role                      UserRole           @default(STUDENT)
+  universityId              String
+  facultyId                 String?
+  studyYear                 Int                @default(1)
+  avatarUrl                 String?
+  bio                       String?
+  isEmailVerified           Boolean            @default(false)
+  studentVerificationStatus VerificationStatus @default(UNVERIFIED)
+  studentIdNumber           String?
+  verificationNote          String?
+  emailNotifyOffers         Boolean            @default(true)
+  emailNotifyMessages       Boolean            @default(false)
+  pushNotifyEnabled         Boolean            @default(false)
+  isSuspended               Boolean            @default(false)
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+
+  university                University         @relation(fields: [universityId], references: [id])
+  faculty                   Faculty?           @relation(fields: [facultyId], references: [id])
+  listings                  SwapListing[]
+  sentOffers                SwapOffer[]        @relation("OfferSender")
+  receivedOffers            SwapOffer[]        @relation("OfferReceiver")
+  conversationsAsOne        Conversation[]     @relation("ParticipantOne")
+  conversationsAsTwo        Conversation[]     @relation("ParticipantTwo")
+  messages                  Message[]
+  notifications             Notification[]
+  savedListings             SavedListing[]
+  reports                   Report[]
+  authTokens                AuthToken[]
+
+  @@index([universityId])
+  @@map("users")
+}
+
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String?
+  email     String?
+  token     String        @unique
+  type      AuthTokenType
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user      User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([email, type])
+  @@map("auth_tokens")
+}
+
+model Course {
+  id           String        @id @default(cuid())
+  universityId String
+  facultyId    String?
+  code         String
+  name         String
+  credits      Int           @default(5)
+  createdAt    DateTime      @default(now())
+
+  university   University    @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  faculty      Faculty?      @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  groups       Group[]
+  listings     SwapListing[]
+
+  @@unique([universityId, code])
+  @@index([universityId, name])
+  @@map("courses")
+}
+
+model Lecturer {
+  id              String        @id @default(cuid())
+  universityId    String
+  fullName        String
+  department      String?
+  createdAt       DateTime      @default(now())
+
+  university      University    @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  groups          Group[]
+  currentListings SwapListing[] @relation("CurrentLecturer")
+  desiredListings SwapListing[] @relation("DesiredLecturer")
+
+  @@unique([universityId, fullName])
+  @@map("lecturers")
+}
+
+model Group {
+  id           String        @id @default(cuid())
+  universityId String
+  courseId     String
+  lecturerId   String
+  groupCode    String
+  dayOfWeek    String
+  startTime    String
+  endTime      String
+  room         String?
+  createdAt    DateTime      @default(now())
+
+  university   University    @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lecturer     Lecturer      @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
+  listings     SwapListing[]
+
+  @@unique([courseId, groupCode])
+  @@index([universityId, courseId])
+  @@map("groups")
+}
+
+model SwapListing {
+  id                   String        @id @default(cuid())
+  authorId             String
+  universityId         String
+  courseId             String
+  currentLecturerId    String?
+  currentLecturerName  String
+  currentGroupId       String?
+  currentGroupCode     String
+  currentDay           String
+  currentTime          String
+  desiredLecturerId    String?
+  desiredLecturerName  String?
+  desiredGroupCode     String?
+  desiredDay           String?
+  desiredTime          String
+  comment              String?
+  status               ListingStatus @default(OPEN)
+  acceptedOfferId      String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  author               User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  university           University    @relation(fields: [universityId], references: [id])
+  course               Course        @relation(fields: [courseId], references: [id])
+  currentLecturer      Lecturer?     @relation("CurrentLecturer", fields: [currentLecturerId], references: [id], onDelete: SetNull)
+  currentGroup         Group?        @relation(fields: [currentGroupId], references: [id], onDelete: SetNull)
+  desiredLecturer      Lecturer?     @relation("DesiredLecturer", fields: [desiredLecturerId], references: [id], onDelete: SetNull)
+  offers               SwapOffer[]
+  savedBy              SavedListing[]
+  reports              Report[]
+
+  @@index([universityId, status, createdAt(sort: Desc)])
+  @@index([courseId, status])
+  @@index([authorId])
+  @@map("swap_listings")
+}
+
+model SwapOffer {
+  id                  String        @id @default(cuid())
+  listingId           String
+  senderId            String
+  receiverId          String
+  offeredGroupCode    String
+  offeredLecturerName String
+  offeredDay          String
+  offeredTime         String
+  message             String?
+  status              OfferStatus   @default(PENDING)
+  respondedAt         DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  listing             SwapListing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sender              User          @relation("OfferSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver            User          @relation("OfferReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  conversation        Conversation?
+
+  @@index([listingId, status])
+  @@index([senderId])
+  @@index([receiverId])
+  @@map("swap_offers")
+}
+
+model Conversation {
+  id               String    @id @default(cuid())
+  offerId          String?   @unique
+  participantOneId String
+  participantTwoId String
+  lastMessageAt    DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+
+  offer            SwapOffer? @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  participantOne   User       @relation("ParticipantOne", fields: [participantOneId], references: [id], onDelete: Cascade)
+  participantTwo   User       @relation("ParticipantTwo", fields: [participantTwoId], references: [id], onDelete: Cascade)
+  messages         Message[]
+
+  @@unique([participantOneId, participantTwoId])
+  @@index([lastMessageAt(sort: Desc)])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  linkUrl   String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model SavedListing {
+  id        String      @id @default(cuid())
+  userId    String
+  listingId String
+  createdAt DateTime    @default(now())
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing   SwapListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@map("saved_listings")
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  listingId  String
+  reporterId String
+  reason     String
+  details    String?
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  listing    SwapListing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reporter   User         @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt(sort: Desc)])
+  @@map("reports")
+}
+
+model LectorBattle {
+  id              String       @id @default(cuid())
+  title           String       @default("BTU: კვირის ბრძოლა")
+  description     String?
+  lector1Name     String
+  lector1Subject  String
+  lector1Photo    String
+  lector1Votes    Int          @default(0)
+  lector2Name     String
+  lector2Subject  String
+  lector2Photo    String
+  lector2Votes    Int          @default(0)
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  votes           LectorVote[]
+
+  @@map("lector_battles")
+}
+
+model LectorVote {
+  id               String       @id @default(cuid())
+  battleId         String
+  selectedLector   Int          // 1 or 2
+  voterIdentifier  String       // cookie/ip/fingerprint
+  createdAt        DateTime     @default(now())
+
+  battle           LectorBattle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+
+  @@unique([battleId, voterIdentifier])
+  @@index([battleId])
+  @@map("lector_votes")
+}
+
