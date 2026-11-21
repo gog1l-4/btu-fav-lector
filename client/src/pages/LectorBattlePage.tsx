@@ -28,6 +28,18 @@ import { useToast } from '../context/ToastContext';
 import type { BattleFeedResponse, LeaderboardItem, LectorBattle } from '../types';
 import { getOrCreateVoterId } from '../utils/voterId';
 
+function cleanPhotoUrl(url?: string | null): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (trimmed.startsWith('https://data:')) {
+    return trimmed.replace('https://data:', 'data:');
+  }
+  if (trimmed.startsWith('http://data:')) {
+    return trimmed.replace('http://data:', 'data:');
+  }
+  return trimmed;
+}
+
 function LaurelLeft() {
   return (
     <svg className="w-8 h-8 sm:w-11 sm:h-11 text-[#C8A97E]/80 flex-shrink-0" viewBox="0 0 48 48" fill="currentColor">
@@ -416,7 +428,7 @@ export function LectorBattlePage() {
                   }`}
                 >
                   <img
-                    src={currentBattle?.lector1Photo}
+                    src={cleanPhotoUrl(currentBattle?.lector1Photo)}
                     alt={currentBattle?.lector1Name}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-102"
@@ -479,7 +491,7 @@ export function LectorBattlePage() {
                   }`}
                 >
                   <img
-                    src={currentBattle?.lector2Photo}
+                    src={cleanPhotoUrl(currentBattle?.lector2Photo)}
                     alt={currentBattle?.lector2Name}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-102"
@@ -646,7 +658,7 @@ export function LectorBattlePage() {
 
                     {/* Avatar */}
                     <img
-                      src={item.avatar}
+                      src={cleanPhotoUrl(item.avatar)}
                       alt={item.name}
                       referrerPolicy="no-referrer"
                       className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border border-white/10 flex-shrink-0"

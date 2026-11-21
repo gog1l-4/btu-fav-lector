@@ -23,6 +23,18 @@ import type { LectorBattle } from '../types';
 
 const ADMIN_PIN_KEY = 'btu_admin_session_pin';
 
+function cleanPhotoUrl(url?: string | null): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (trimmed.startsWith('https://data:')) {
+    return trimmed.replace('https://data:', 'data:');
+  }
+  if (trimmed.startsWith('http://data:')) {
+    return trimmed.replace('http://data:', 'data:');
+  }
+  return trimmed;
+}
+
 export function AdminBattlePage() {
   const [pin, setPin] = useState(sessionStorage.getItem(ADMIN_PIN_KEY) || '');
   const [isPinValid, setIsPinValid] = useState(false);
@@ -165,7 +177,13 @@ export function AdminBattlePage() {
   // Helper to proxy external image URLs to base64 Data URLs
   async function fetchImageAsDataUrl(url: string, lectorNum?: 1 | 2): Promise<string> {
     if (!url) return url;
-    let cleanUrl = url.trim();
+    let cleanUrl = cleanPhotoUrl(url);
+
+    // If already a Data URL (from computer upload or image paste), return it directly!
+    if (cleanUrl.startsWith('data:')) {
+      return cleanUrl;
+    }
+
     if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
       cleanUrl = 'https://' + cleanUrl;
     }
@@ -193,10 +211,11 @@ export function AdminBattlePage() {
       if (res.ok) {
         const data = await res.json();
         if (data.dataUrl) {
-          if (lectorNum === 1) setLector1Photo(data.dataUrl);
-          if (lectorNum === 2) setLector2Photo(data.dataUrl);
+          const finalDataUrl = cleanPhotoUrl(data.dataUrl);
+          if (lectorNum === 1) setLector1Photo(finalDataUrl);
+          if (lectorNum === 2) setLector2Photo(finalDataUrl);
           if (lectorNum) showToast(`ლექტორი ${lectorNum}-ის ფოტო წარმატებით ჩაიტვირთა! ✨`, 'success');
-          return data.dataUrl;
+          return finalDataUrl;
         }
       } else {
         const err = await res.json().catch(() => null);
@@ -227,9 +246,14 @@ export function AdminBattlePage() {
     try {
       setCreating(true);
 
-      // Auto-proxy external links (UG, BTU, etc.) to permanent embedded Data URLs
-      const finalPhoto1 = await fetchImageAsDataUrl(lector1Photo.trim());
-      const finalPhoto2 = await fetchImageAsDataUrl(lector2Photo.trim());
+      // Auto-proxy external links. NEVER touch or mutate data: URLs!
+      const finalPhoto1 = lector1Photo.trim().startsWith('data:')
+        ? cleanPhotoUrl(lector1Photo.trim())
+        : await fetchImageAsDataUrl(lector1Photo.trim(), 1);
+
+      const finalPhoto2 = lector2Photo.trim().startsWith('data:')
+        ? cleanPhotoUrl(lector2Photo.trim())
+        : await fetchImageAsDataUrl(lector2Photo.trim(), 2);
 
       const res = await fetch('/api/battles', {
         method: 'POST',
@@ -953,7 +977,7 @@ export function AdminBattlePage() {
                     {/* Small Versus Avatars */}
                     <div className="flex items-center -space-x-3">
                       <img
-                        src={b.lector1Photo}
+                        src={cleanPhotoUrl(b.lector1Photo)}
                         alt={b.lector1Name}
                         referrerPolicy="no-referrer"
                         onError={(e) => {
@@ -962,7 +986,7 @@ export function AdminBattlePage() {
                         className="w-12 h-12 rounded-xl object-cover border-2 border-indigo-500 shadow bg-slate-800"
                       />
                       <img
-                        src={b.lector2Photo}
+                        src={cleanPhotoUrl(b.lector2Photo)}
                         alt={b.lector2Name}
                         referrerPolicy="no-referrer"
                         onError={(e) => {

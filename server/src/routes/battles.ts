@@ -41,12 +41,26 @@ const upload = multer({
   },
 });
 
+function cleanPhotoUrl(url: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (trimmed.startsWith('https://data:')) {
+    return trimmed.replace('https://data:', 'data:');
+  }
+  if (trimmed.startsWith('http://data:')) {
+    return trimmed.replace('http://data:', 'data:');
+  }
+  return trimmed;
+}
+
 function computeBattleStats(battle: any) {
   const totalVotes = (battle.lector1Votes || 0) + (battle.lector2Votes || 0);
   const lector1Percent = totalVotes > 0 ? Math.round((battle.lector1Votes / totalVotes) * 100) : 50;
   const lector2Percent = totalVotes > 0 ? 100 - lector1Percent : 50;
   return {
     ...battle,
+    lector1Photo: cleanPhotoUrl(battle.lector1Photo),
+    lector2Photo: cleanPhotoUrl(battle.lector2Photo),
     totalVotes,
     lector1Percent,
     lector2Percent,
@@ -89,6 +103,16 @@ router.post(
     }
 
     url = url.trim();
+
+    // If already a Data URL, return immediately!
+    if (url.startsWith('data:')) {
+      return res.json({ dataUrl: url, finalUrl: url });
+    }
+    if (url.startsWith('https://data:') || url.startsWith('http://data:')) {
+      const fixed = url.replace(/^https?:\/\/data:/, 'data:');
+      return res.json({ dataUrl: fixed, finalUrl: fixed });
+    }
+
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
@@ -167,6 +191,16 @@ router.get(
     }
 
     url = url.trim();
+
+    // If already a Data URL, return immediately!
+    if (url.startsWith('data:')) {
+      return res.json({ dataUrl: url, finalUrl: url });
+    }
+    if (url.startsWith('https://data:') || url.startsWith('http://data:')) {
+      const fixed = url.replace(/^https?:\/\/data:/, 'data:');
+      return res.json({ dataUrl: fixed, finalUrl: fixed });
+    }
+
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
@@ -614,8 +648,11 @@ async function resolveLectorPhoto(name: string, photo: string, defaultFallback: 
   const lowerPhoto = clean.toLowerCase();
 
   // If already a valid base64 data URL, keep it!
-  if (clean.startsWith('data:image/')) {
+  if (clean.startsWith('data:image/') || clean.startsWith('data:')) {
     return clean;
+  }
+  if (clean.startsWith('https://data:') || clean.startsWith('http://data:')) {
+    return clean.replace(/^https?:\/\/data:/, 'data:');
   }
 
   // If Aleksandre Sborischikovi
