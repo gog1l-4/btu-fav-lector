@@ -79,6 +79,42 @@ router.post('/upload', requireAdminPin, upload.single('photo'), (req: Request, r
   res.json({ url: fileUrl, filename: req.file.filename });
 });
 
+// 2b. Proxy / Download external image URL (solves cross-origin & university portal token issues)
+router.post(
+  '/proxy-image',
+  requireAdminPin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { url } = req.body;
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+      return res.status(400).json({ message: 'გთხოვთ მიუთითოთ ვალიდური URL' });
+    }
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        },
+      });
+
+      if (!response.ok) {
+        return res.status(400).json({ message: `სურათი ვერ ჩამოიტვირთა (სტატუსი: ${response.status})` });
+      }
+
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const base64 = buffer.toString('base64');
+      const dataUrl = `data:${contentType.includes('png') ? 'image/png' : 'image/jpeg'};base64,${base64}`;
+
+      res.json({ dataUrl });
+    } catch (err: any) {
+      res.status(400).json({ message: 'მოცემული ლინკიდან სურათის წამოღება ვერ მოხერხდა' });
+    }
+  })
+);
+
 // 3. Get currently active battle (Public, zero auth)
 router.get(
   '/active',
