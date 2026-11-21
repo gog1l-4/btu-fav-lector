@@ -8,6 +8,7 @@ import {
   GraduationCap,
   Heart,
   HelpCircle,
+  Home,
   Info,
   Landmark,
   Share2,
@@ -213,157 +214,202 @@ export function LectorBattlePage() {
 
       {/* TOP HEADER NAVBAR */}
       <header className="sticky top-0 z-50 w-full border-b border-white/[0.08] bg-[#0B0D12]/95 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 sm:h-20 flex items-center justify-between">
           {/* Left Brand */}
           <div
             onClick={() => handleTabClick('main')}
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-2.5 sm:gap-3 cursor-pointer"
           >
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white">
-              <GraduationCap className="w-5 h-5" />
+              <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <span className="font-extrabold text-white text-base sm:text-lg tracking-tight font-title">
               Fav Lector
             </span>
           </div>
 
-          {/* Center Navigation Pills - 100% REAL & FUNCTIONAL */}
+          {/* Desktop Center Navigation Pills */}
           <nav className="hidden md:flex items-center bg-[#141720]/80 border border-white/[0.08] p-1 rounded-full shadow-inner">
             <button
               onClick={() => handleTabClick('main')}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'main'
                   ? 'bg-white/10 text-white shadow-sm'
                   : 'text-stone-400 hover:text-white'
               }`}
             >
-              მთავარი
+              <Home className="w-3.5 h-3.5" />
+              <span>მთავარი</span>
             </button>
             <button
               onClick={() => handleTabClick('rating')}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'rating'
                   ? 'bg-white/10 text-white shadow-sm'
                   : 'text-stone-400 hover:text-white'
               }`}
             >
-              რეიტინგი
+              <Trophy className="w-3.5 h-3.5 text-[#C8A97E]" />
+              <span>რეიტინგი</span>
             </button>
             <button
               onClick={() => handleTabClick('stats')}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'stats'
                   ? 'bg-white/10 text-white shadow-sm'
                   : 'text-stone-400 hover:text-white'
               }`}
             >
-              სტატისტიკა
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>სტატისტიკა</span>
             </button>
             <button
               onClick={() => handleTabClick('about')}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'about'
                   ? 'bg-white/10 text-white shadow-sm'
                   : 'text-stone-400 hover:text-white'
               }`}
             >
-              შესახებ
+              <Info className="w-3.5 h-3.5" />
+              <span>შესახებ</span>
             </button>
           </nav>
 
           {/* Right Controls */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-stone-200">
               <Landmark className="w-3.5 h-3.5 text-[#C8A97E]" />
               <span>BTU</span>
               <ChevronDown className="w-3 h-3 text-stone-500" />
             </div>
 
-            <button
-              onClick={handleShareLink}
-              className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-stone-300 hover:text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer"
-              title="გაზიარება"
-            >
-              <Share2 className="w-3.5 h-3.5 text-[#C8A97E]" />
-              <span className="hidden sm:inline">გაზიარება</span>
-            </button>
-
-            <div className="w-8 h-8 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-stone-300">
-              <User className="w-4 h-4" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-stone-300">
+              <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
+        </div>
+
+        {/* Mobile Navigation Pills Bar (1:1 with Mobile Mockup) */}
+        <div className="md:hidden px-3 pb-2.5 pt-0.5 border-t border-white/[0.04]">
+          <nav className="flex items-center justify-between gap-1 py-1">
+            <button
+              onClick={() => handleTabClick('main')}
+              className={`flex-1 py-1.5 px-2 rounded-full text-[11px] font-semibold transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
+                activeTab === 'main'
+                  ? 'bg-white/10 text-white border border-white/10 shadow-sm'
+                  : 'text-stone-400 hover:text-white'
+              }`}
+            >
+              <Home className="w-3 h-3" />
+              <span>მთავარი</span>
+            </button>
+            <button
+              onClick={() => handleTabClick('rating')}
+              className={`flex-1 py-1.5 px-2 rounded-full text-[11px] font-semibold transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
+                activeTab === 'rating'
+                  ? 'bg-white/10 text-white border border-white/10 shadow-sm'
+                  : 'text-stone-400 hover:text-white'
+              }`}
+            >
+              <Trophy className="w-3 h-3 text-[#C8A97E]" />
+              <span>რეიტინგი</span>
+            </button>
+            <button
+              onClick={() => handleTabClick('stats')}
+              className={`flex-1 py-1.5 px-2 rounded-full text-[11px] font-semibold transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
+                activeTab === 'stats'
+                  ? 'bg-white/10 text-white border border-white/10 shadow-sm'
+                  : 'text-stone-400 hover:text-white'
+              }`}
+            >
+              <BarChart3 className="w-3 h-3" />
+              <span>სტატისტიკა</span>
+            </button>
+            <button
+              onClick={() => handleTabClick('about')}
+              className={`flex-1 py-1.5 px-2 rounded-full text-[11px] font-semibold transition flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap ${
+                activeTab === 'about'
+                  ? 'bg-white/10 text-white border border-white/10 shadow-sm'
+                  : 'text-stone-400 hover:text-white'
+              }`}
+            >
+              <Info className="w-3 h-3" />
+              <span>შესახებ</span>
+            </button>
+          </nav>
         </div>
       </header>
 
       {/* HERO SECTION */}
-      <section className="relative z-10 pt-8 sm:pt-12 pb-6 px-4 text-center max-w-4xl mx-auto">
-        <div className="inline-block tracking-widest uppercase text-[11px] font-bold text-[#C8A97E] mb-3">
+      <section className="relative z-10 pt-4 sm:pt-12 pb-4 sm:pb-6 px-4 text-center max-w-4xl mx-auto">
+        <div className="inline-block tracking-widest uppercase text-[10px] sm:text-[11px] font-bold text-[#C8A97E] mb-2 sm:mb-3">
           BTU BATTLE
         </div>
 
-        <div className="flex items-center justify-center gap-2 sm:gap-4 mb-3">
+        <div className="flex items-center justify-center gap-2 sm:gap-4 mb-2 sm:mb-3">
           <LaurelLeft />
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight font-title">
+          <h1 className="text-xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight font-title">
             რომელია შენი ფავორიტი ლექტორი?
           </h1>
           <LaurelRight />
         </div>
 
-        <p className="text-stone-400 text-xs sm:text-sm md:text-base max-w-lg mx-auto font-normal mb-8">
+        <p className="text-stone-400 text-xs sm:text-sm md:text-base max-w-lg mx-auto font-normal mb-5 sm:mb-8">
           აირჩიე ერთ-ერთი ლექტორი და გააგრძელე წყვილები.
         </p>
 
-        {/* 3 REAL STATS ROW (Season 1 completely removed!) */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-6 max-w-xl mx-auto">
-          <div className="flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-            <Users className="w-4 h-4 text-[#C8A97E] flex-shrink-0" />
+        {/* 3 REAL STATS ROW */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-6 max-w-xl mx-auto">
+          <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 px-2 sm:px-3 py-2 sm:py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C8A97E] flex-shrink-0" />
             <div className="text-left">
-              <div className="text-xs sm:text-sm font-bold text-white font-title">
+              <div className="text-[11px] sm:text-sm font-bold text-white font-title">
                 {stats.totalVotes.toLocaleString()}
               </div>
-              <div className="text-[10px] text-stone-500 font-medium">სულ ხმები</div>
+              <div className="text-[9px] sm:text-[10px] text-stone-500 font-medium">სულ ხმები</div>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-            <Swords className="w-4 h-4 text-[#C8A97E] flex-shrink-0" />
+          <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 px-2 sm:px-3 py-2 sm:py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+            <Swords className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C8A97E] flex-shrink-0" />
             <div className="text-left">
-              <div className="text-xs sm:text-sm font-bold text-white font-title">
+              <div className="text-[11px] sm:text-sm font-bold text-white font-title">
                 {stats.totalBattles.toLocaleString()}
               </div>
-              <div className="text-[10px] text-stone-500 font-medium">ბრძოლა</div>
+              <div className="text-[9px] sm:text-[10px] text-stone-500 font-medium">ბრძოლა</div>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-            <GraduationCap className="w-4 h-4 text-[#C8A97E] flex-shrink-0" />
+          <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 px-2 sm:px-3 py-2 sm:py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+            <GraduationCap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C8A97E] flex-shrink-0" />
             <div className="text-left">
-              <div className="text-xs sm:text-sm font-bold text-white font-title">
+              <div className="text-[11px] sm:text-sm font-bold text-white font-title">
                 {stats.totalLectors}
               </div>
-              <div className="text-[10px] text-stone-500 font-medium">ლექტორი</div>
+              <div className="text-[9px] sm:text-[10px] text-stone-500 font-medium">ლექტორი</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* MAIN TWO-COLUMN CONTAINER */}
-      <main className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-8 flex-1">
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
+      {/* MAIN CONTAINER */}
+      <main className="relative z-10 max-w-7xl w-full mx-auto px-3 sm:px-6 py-2 sm:py-8 flex-1">
+        <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 items-start">
           {/* LEFT: VERSUS ARENA */}
-          <div className="w-full lg:flex-1 space-y-6">
-            {/* Cards Container with Center VS Badge */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 relative">
+          <div className="w-full lg:flex-1 space-y-4 sm:space-y-6">
+            {/* Cards Container: ALWAYS 2 COLUMNS (SIDE BY SIDE ON MOBILE) */}
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-6 relative">
               {/* Center VS Badge */}
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#D8BE93] text-stone-900 font-black italic shadow-2xl flex items-center justify-center tracking-wider text-xs sm:text-sm pointer-events-none ring-4 ring-[#0B0D12]">
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-13 sm:h-13 rounded-full bg-[#D8BE93] text-stone-900 font-black italic shadow-2xl flex items-center justify-center tracking-wider text-[10px] sm:text-sm pointer-events-none ring-2 sm:ring-4 ring-[#0B0D12]">
                 VS
               </div>
 
               {/* LECTURER 1 CARD */}
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <div
                   onClick={() => handleVote(1)}
-                  className={`relative rounded-3xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] bg-[#141720] border transition-all duration-300 shadow-2xl group cursor-pointer ${
+                  className={`relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[3/4] sm:aspect-[3/4] bg-[#141720] border transition-all duration-300 shadow-2xl group cursor-pointer ${
                     currentBattle?.userVote === 1
                       ? 'border-[#D8BE93] ring-2 ring-[#D8BE93]/40'
                       : 'border-white/10 hover:border-white/30'
@@ -375,22 +421,22 @@ export function LectorBattlePage() {
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-102"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
 
                   {/* Name & Subject Overlay */}
-                  <div className="absolute bottom-5 left-5 right-5">
-                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-md font-title">
+                  <div className="absolute bottom-2.5 sm:bottom-5 left-2.5 sm:left-5 right-2.5 sm:right-5">
+                    <h3 className="text-xs sm:text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-md font-title line-clamp-2">
                       {currentBattle?.lector1Name}
                     </h3>
-                    <p className="text-xs sm:text-sm text-stone-300 font-medium mt-1">
+                    <p className="text-[10px] sm:text-sm text-stone-300 font-medium mt-0.5 sm:mt-1 truncate">
                       {currentBattle?.lector1Subject}
                     </p>
                   </div>
 
                   {currentBattle?.userVote === 1 && (
-                    <div className="absolute top-4 right-4 bg-[#D8BE93] text-stone-950 px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 shadow-lg">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>შენი არჩევანი</span>
+                    <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-[#D8BE93] text-stone-950 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[11px] font-bold flex items-center gap-1 shadow-lg">
+                      <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      <span className="hidden sm:inline">შენი არჩევანი</span>
                     </div>
                   )}
                 </div>
@@ -399,7 +445,7 @@ export function LectorBattlePage() {
                 <button
                   onClick={() => handleVote(1)}
                   disabled={voting || currentBattle?.hasVoted}
-                  className={`w-full py-3.5 px-5 rounded-full font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-98 shadow-md cursor-pointer ${
+                  className={`w-full py-2.5 sm:py-3.5 px-2 sm:px-5 rounded-full font-bold text-[11px] sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-200 active:scale-98 shadow-md cursor-pointer ${
                     currentBattle?.userVote === 1
                       ? 'bg-[#D8BE93] text-stone-900 shadow-[#D8BE93]/20'
                       : currentBattle?.hasVoted
@@ -408,11 +454,11 @@ export function LectorBattlePage() {
                   }`}
                 >
                   <Heart
-                    className={`w-4 h-4 ${
+                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
                       currentBattle?.userVote === 1 ? 'fill-stone-900 text-stone-900' : 'text-stone-300'
                     }`}
                   />
-                  <span>
+                  <span className="truncate">
                     {currentBattle?.userVote === 1
                       ? 'არჩეულია'
                       : currentBattle?.hasVoted
@@ -423,10 +469,10 @@ export function LectorBattlePage() {
               </div>
 
               {/* LECTURER 2 CARD */}
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <div
                   onClick={() => handleVote(2)}
-                  className={`relative rounded-3xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] bg-[#141720] border transition-all duration-300 shadow-2xl group cursor-pointer ${
+                  className={`relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[3/4] sm:aspect-[3/4] bg-[#141720] border transition-all duration-300 shadow-2xl group cursor-pointer ${
                     currentBattle?.userVote === 2
                       ? 'border-[#D8BE93] ring-2 ring-[#D8BE93]/40'
                       : 'border-white/10 hover:border-white/30'
@@ -438,22 +484,22 @@ export function LectorBattlePage() {
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-102"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
 
                   {/* Name & Subject Overlay */}
-                  <div className="absolute bottom-5 left-5 right-5">
-                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-md font-title">
+                  <div className="absolute bottom-2.5 sm:bottom-5 left-2.5 sm:left-5 right-2.5 sm:right-5">
+                    <h3 className="text-xs sm:text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-md font-title line-clamp-2">
                       {currentBattle?.lector2Name}
                     </h3>
-                    <p className="text-xs sm:text-sm text-stone-300 font-medium mt-1">
+                    <p className="text-[10px] sm:text-sm text-stone-300 font-medium mt-0.5 sm:mt-1 truncate">
                       {currentBattle?.lector2Subject}
                     </p>
                   </div>
 
                   {currentBattle?.userVote === 2 && (
-                    <div className="absolute top-4 right-4 bg-[#D8BE93] text-stone-950 px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 shadow-lg">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>შენი არჩევანი</span>
+                    <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-[#D8BE93] text-stone-950 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[11px] font-bold flex items-center gap-1 shadow-lg">
+                      <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      <span className="hidden sm:inline">შენი არჩევანი</span>
                     </div>
                   )}
                 </div>
@@ -462,7 +508,7 @@ export function LectorBattlePage() {
                 <button
                   onClick={() => handleVote(2)}
                   disabled={voting || currentBattle?.hasVoted}
-                  className={`w-full py-3.5 px-5 rounded-full font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-98 shadow-md cursor-pointer ${
+                  className={`w-full py-2.5 sm:py-3.5 px-2 sm:px-5 rounded-full font-bold text-[11px] sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-200 active:scale-98 shadow-md cursor-pointer ${
                     currentBattle?.userVote === 2
                       ? 'bg-[#D8BE93] text-stone-900 shadow-[#D8BE93]/20'
                       : currentBattle?.hasVoted
@@ -471,11 +517,11 @@ export function LectorBattlePage() {
                   }`}
                 >
                   <Heart
-                    className={`w-4 h-4 ${
+                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
                       currentBattle?.userVote === 2 ? 'fill-stone-900 text-stone-900' : 'fill-stone-900'
                     }`}
                   />
-                  <span>
+                  <span className="truncate">
                     {currentBattle?.userVote === 2
                       ? 'არჩეულია'
                       : currentBattle?.hasVoted
@@ -486,14 +532,14 @@ export function LectorBattlePage() {
               </div>
             </div>
 
-            {/* Pagination & Pair Controls - 100% FUNCTIONAL */}
-            <div className="flex items-center justify-between pt-2">
+            {/* Pagination & Pair Controls */}
+            <div className="flex items-center justify-between pt-1 sm:pt-2">
               <button
                 onClick={handleRandomPair}
-                className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-stone-300 transition flex items-center gap-2 active:scale-95 cursor-pointer"
+                className="px-3 sm:px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] sm:text-xs font-semibold text-stone-300 transition flex items-center gap-1.5 sm:gap-2 active:scale-95 cursor-pointer"
               >
                 <Shuffle className="w-3.5 h-3.5 text-[#C8A97E]" />
-                <span>შემთხვევითი წყვილი</span>
+                <span className="truncate">შემთხვევითი წყვილი</span>
               </button>
 
               <div className="text-xs font-bold text-stone-400 font-title">
@@ -502,41 +548,90 @@ export function LectorBattlePage() {
 
               <button
                 onClick={handleNextPair}
-                className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-stone-300 transition flex items-center gap-2 active:scale-95 cursor-pointer"
+                className="px-3 sm:px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] sm:text-xs font-semibold text-stone-300 transition flex items-center gap-1.5 sm:gap-2 active:scale-95 cursor-pointer"
               >
                 <span>შემდეგი წყვილი</span>
                 <span>→</span>
               </button>
             </div>
+
+            {/* PROGRESS BAR - PLACED DIRECTLY BELOW CONTROLS AS IN MOBILE MOCKUP */}
+            {currentBattle && (
+              <div className="bg-[#13161F]/90 border border-white/[0.08] rounded-2xl p-3 sm:px-6 sm:py-3.5 flex flex-col gap-2.5 shadow-xl">
+                <div className="flex items-center gap-2 text-xs font-bold text-stone-300">
+                  <BarChart3 className="w-4 h-4 text-[#D8BE93]" />
+                  <span className="font-title">ბრძოლის პროგრესი</span>
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-3 w-full">
+                  <div className="text-[11px] sm:text-xs font-bold text-[#D8BE93] whitespace-nowrap font-title flex items-center gap-1">
+                    <span>{currentBattle.lector1Percent}%</span>
+                    <span className="text-[10px] text-stone-400 font-normal truncate max-w-[80px] sm:max-w-none">
+                      {currentBattle.lector1Name}
+                    </span>
+                  </div>
+
+                  {/* Dual Color Progress Bar */}
+                  <div className="flex-1 h-2 sm:h-3 bg-[#242A38] rounded-full overflow-hidden flex">
+                    <div
+                      className="h-full bg-[#D8BE93] transition-all duration-700 ease-out"
+                      style={{ width: `${currentBattle.lector1Percent}%` }}
+                    />
+                    <div
+                      className="h-full bg-[#353D50] transition-all duration-700 ease-out"
+                      style={{ width: `${currentBattle.lector2Percent}%` }}
+                    />
+                  </div>
+
+                  <div className="text-[11px] sm:text-xs font-bold text-stone-300 whitespace-nowrap font-title flex items-center gap-1">
+                    <span className="text-[10px] text-stone-400 font-normal truncate max-w-[80px] sm:max-w-none">
+                      {currentBattle.lector2Name}
+                    </span>
+                    <span>{currentBattle.lector2Percent}%</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* RIGHT: LEADERBOARD SIDEBAR - 100% REAL FROM DATABASE */}
-          <aside className="w-full lg:w-[350px] xl:w-[380px] bg-[#13161F]/90 border border-white/[0.08] rounded-3xl p-6 shadow-2xl backdrop-blur-md space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-[#D8BE93]">
-                <Trophy className="w-5 h-5" />
+          {/* RIGHT / BELOW: LEADERBOARD SIDEBAR */}
+          <aside className="w-full lg:w-[350px] xl:w-[380px] bg-[#13161F]/90 border border-white/[0.08] rounded-3xl p-4 sm:p-6 shadow-2xl backdrop-blur-md space-y-4 sm:space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-[#D8BE93]">
+                  <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-bold text-white leading-tight font-title">
+                    ტოპ ლექტორები
+                  </h2>
+                  <p className="text-[10px] sm:text-xs text-stone-400 mt-0.5">
+                    ყველაზე ხშირად არჩეულები
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-base font-bold text-white leading-tight font-title">
-                  ტოპ ლექტორები
-                </h2>
-                <p className="text-xs text-stone-400 mt-0.5">
-                  ყველაზე ხშირად არჩეულები
-                </p>
-              </div>
+
+              {/* Full Rating Link on Right Side of Header */}
+              <button
+                onClick={() => handleTabClick('rating')}
+                className="text-[11px] sm:text-xs font-semibold text-stone-400 hover:text-white transition flex items-center gap-1 cursor-pointer"
+              >
+                <span>სრული რეიტინგი</span>
+                <span>→</span>
+              </button>
             </div>
 
             {/* Ranked List */}
-            <div className="space-y-4">
-              {leaderboard.map((item) => (
+            <div className="space-y-3 sm:space-y-4">
+              {leaderboard.slice(0, 5).map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-3 p-2 rounded-2xl hover:bg-white/[0.03] transition"
+                  className="flex items-center justify-between gap-3 p-1.5 sm:p-2 rounded-2xl hover:bg-white/[0.03] transition"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                     {/* Rank Circle */}
                     <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0 font-title ${
+                      className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-[11px] font-black flex-shrink-0 font-title ${
                         item.rank === 1
                           ? 'bg-[#D8BE93] text-stone-950'
                           : item.rank === 2
@@ -554,7 +649,7 @@ export function LectorBattlePage() {
                       src={item.avatar}
                       alt={item.name}
                       referrerPolicy="no-referrer"
-                      className="w-10 h-10 rounded-full object-cover border border-white/10 flex-shrink-0"
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border border-white/10 flex-shrink-0"
                     />
 
                     {/* Name */}
@@ -580,55 +675,8 @@ export function LectorBattlePage() {
                 </div>
               ))}
             </div>
-
-            {/* Full Rating Link */}
-            <button
-              onClick={() => handleTabClick('rating')}
-              className="w-full py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-stone-300 hover:text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 active:scale-98 cursor-pointer"
-            >
-              <span>სრული რეიტინგი</span>
-              <span>→</span>
-            </button>
           </aside>
         </div>
-
-        {/* BOTTOM PROGRESS BAR - 100% REALTIME */}
-        {currentBattle && (
-          <div className="mt-8 bg-[#13161F]/90 border border-white/[0.08] rounded-2xl sm:rounded-full p-3 sm:px-6 sm:py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
-            <div className="flex items-center gap-2 text-xs font-bold text-stone-300 flex-shrink-0">
-              <BarChart3 className="w-4 h-4 text-[#D8BE93]" />
-              <span className="font-title">ბრძოლის პროგრესი</span>
-            </div>
-
-            <div className="flex items-center gap-3 w-full sm:w-auto sm:flex-1 sm:max-w-xl mx-auto">
-              <div className="text-xs font-bold text-[#D8BE93] whitespace-nowrap font-title">
-                {currentBattle.lector1Percent}%
-                <span className="hidden md:inline ml-1 text-stone-400 font-normal">
-                  {currentBattle.lector1Name}
-                </span>
-              </div>
-
-              {/* Dual Color Progress Bar */}
-              <div className="flex-1 h-2.5 sm:h-3 bg-[#242A38] rounded-full overflow-hidden flex">
-                <div
-                  className="h-full bg-[#D8BE93] transition-all duration-700 ease-out"
-                  style={{ width: `${currentBattle.lector1Percent}%` }}
-                />
-                <div
-                  className="h-full bg-[#353D50] transition-all duration-700 ease-out"
-                  style={{ width: `${currentBattle.lector2Percent}%` }}
-                />
-              </div>
-
-              <div className="text-xs font-bold text-stone-300 whitespace-nowrap font-title">
-                <span className="hidden md:inline mr-1 text-stone-400 font-normal">
-                  {currentBattle.lector2Name}
-                </span>
-                {currentBattle.lector2Percent}%
-              </div>
-            </div>
-          </div>
-        )}
       </main>
 
       {/* FOOTER */}
