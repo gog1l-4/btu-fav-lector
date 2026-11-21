@@ -573,16 +573,27 @@ router.post(
       });
     }
 
+    const finalPhoto1 = await resolveLectorPhoto(
+      lector1Name,
+      lector1Photo,
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80'
+    );
+    const finalPhoto2 = await resolveLectorPhoto(
+      lector2Name,
+      lector2Photo,
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80'
+    );
+
     const battle = await prisma.lectorBattle.create({
       data: {
         title: title || 'BTU: კვირის ბრძოლა',
         description: description || 'რომელ ლექტორს ანიჭებ უპირატესობას?',
         lector1Name: lector1Name.trim(),
         lector1Subject: lector1Subject?.trim() || '',
-        lector1Photo: lector1Photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+        lector1Photo: finalPhoto1,
         lector2Name: lector2Name.trim(),
         lector2Subject: lector2Subject?.trim() || '',
-        lector2Photo: lector2Photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
+        lector2Photo: finalPhoto2,
         isActive: setAsActive,
       },
     });
@@ -593,6 +604,81 @@ router.post(
     }
 
     res.status(201).json({ battle: stats });
+  })
+);
+
+// Helper to auto-resolve lecturer photos
+async function resolveLectorPhoto(name: string, photo: string, defaultFallback: string): Promise<string> {
+  const clean = (photo || '').trim();
+  const lowerName = (name || '').toLowerCase();
+  const lowerPhoto = clean.toLowerCase();
+
+  // If already a valid base64 data URL, keep it!
+  if (clean.startsWith('data:image/')) {
+    return clean;
+  }
+
+  // If Aleksandre Sborischikovi
+  if (lowerName.includes('სბორ') || lowerPhoto.includes('aleqs') || lowerPhoto.includes('sbor')) {
+    const existing = await prisma.lectorBattle.findFirst({
+      where: { lector1Name: { contains: 'სბორ' }, lector1Photo: { startsWith: 'data:' } },
+    });
+    if (existing?.lector1Photo) return existing.lector1Photo;
+    return 'https://btu.edu.ge/wp-content/uploads/2022/11/aleqsandre-sborshchikovi-1.jpg';
+  }
+
+  // If Aleksandre Benashvili
+  if (lowerName.includes('ბენაშვილ') || lowerPhoto.includes('benash') || lowerPhoto.includes('token=')) {
+    const existing = await prisma.lectorBattle.findFirst({
+      where: { lector2Name: { contains: 'ბენაშვილ' }, lector2Photo: { startsWith: 'data:' } },
+    });
+    if (existing?.lector2Photo) return existing.lector2Photo;
+    return 'https://files.ug.edu.ge/online.ug.edu.ge/picture.php?token=ad02c8625d7e654f1595ba40d8c17a26&personID=82';
+  }
+
+  // If incomplete URL (doesn't end with image extension and not token)
+  if (!clean || clean.length < 10 || (!clean.match(/\.(jpg|jpeg|png|webp|avif|svg)/i) && !clean.includes('token='))) {
+    return defaultFallback;
+  }
+
+  return clean;
+}
+
+// 7b. Auto-fix photos of an existing battle (Admin)
+router.post(
+  '/:id/fix-photos',
+  requireAdminPin,
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const existing = await prisma.lectorBattle.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ message: 'ბრძოლა ვერ მოიძებნა' });
+    }
+
+    const p1 = await resolveLectorPhoto(
+      existing.lector1Name,
+      existing.lector1Photo,
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80'
+    );
+    const p2 = await resolveLectorPhoto(
+      existing.lector2Name,
+      existing.lector2Photo,
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80'
+    );
+
+    const updated = await prisma.lectorBattle.update({
+      where: { id },
+      data: {
+        lector1Photo: p1,
+        lector2Photo: p2,
+      },
+    });
+
+    const stats = computeBattleStats(updated);
+    if (updated.isActive) {
+      emitBattleUpdate(updated.id, stats);
+    }
+    res.json({ battle: stats, success: true });
   })
 );
 

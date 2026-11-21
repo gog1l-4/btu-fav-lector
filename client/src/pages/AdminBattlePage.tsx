@@ -324,6 +324,28 @@ export function AdminBattlePage() {
     }
   }
 
+  // Auto-fix photos of existing battle
+  async function handleFixPhotos(battleId: string) {
+    try {
+      const res = await fetch(`/api/battles/${battleId}/fix-photos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-pin': pin,
+        },
+      });
+      if (res.ok) {
+        showToast('ფოტოები წარმატებით გასწორდა! ✨', 'success');
+        fetchBattles(pin);
+      } else {
+        const err = await res.json().catch(() => null);
+        showToast(err?.message || 'ფოტოების გასწორება ვერ მოხერხდა', 'error');
+      }
+    } catch {
+      showToast('სერვერთან კავშირის შეცდომა', 'error');
+    }
+  }
+
   function handleLogout() {
     sessionStorage.removeItem(ADMIN_PIN_KEY);
     setIsPinValid(false);
@@ -934,13 +956,19 @@ export function AdminBattlePage() {
                         src={b.lector1Photo}
                         alt={b.lector1Name}
                         referrerPolicy="no-referrer"
-                        className="w-12 h-12 rounded-xl object-cover border-2 border-indigo-500 shadow"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+                        }}
+                        className="w-12 h-12 rounded-xl object-cover border-2 border-indigo-500 shadow bg-slate-800"
                       />
                       <img
                         src={b.lector2Photo}
                         alt={b.lector2Name}
                         referrerPolicy="no-referrer"
-                        className="w-12 h-12 rounded-xl object-cover border-2 border-pink-500 shadow"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                        }}
+                        className="w-12 h-12 rounded-xl object-cover border-2 border-pink-500 shadow bg-slate-800"
                       />
                     </div>
 
@@ -963,10 +991,19 @@ export function AdminBattlePage() {
 
                   {/* Right: Actions */}
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+                    <button
+                      onClick={() => handleFixPhotos(b.id)}
+                      className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                      title="ფოტოების ავტო-გასწორება"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>ფოტოს გასწორება</span>
+                    </button>
+
                     {!b.isActive && (
                       <button
                         onClick={() => handleSetActive(b.id)}
-                        className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95"
+                        className="px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
                         <span>აქტიურად დაყენება</span>
@@ -975,7 +1012,7 @@ export function AdminBattlePage() {
 
                     <button
                       onClick={() => handleResetVotes(b.id)}
-                      className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-amber-400 transition"
+                      className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-amber-400 transition cursor-pointer"
                       title="ხმების განულება"
                     >
                       <RotateCcw className="w-4 h-4" />
@@ -983,7 +1020,7 @@ export function AdminBattlePage() {
 
                     <button
                       onClick={() => handleDeleteBattle(b.id)}
-                      className="p-2 rounded-xl bg-slate-800 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 transition"
+                      className="p-2 rounded-xl bg-slate-800 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 transition cursor-pointer"
                       title="წაშლა"
                     >
                       <Trash2 className="w-4 h-4" />
