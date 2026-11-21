@@ -243,7 +243,7 @@ export function LectorBattlePage() {
           <GraduationCap className="w-7 h-7 text-[#D8BE93] animate-bounce" />
         </div>
         <p className="mt-4 text-stone-400 font-medium text-xs tracking-wider uppercase">
-          Fav Lector იტვირთება...
+          spaceuni იტვირთება...
         </p>
       </div>
     );
@@ -267,8 +267,8 @@ export function LectorBattlePage() {
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white">
               <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <span className="font-extrabold text-white text-base sm:text-lg tracking-tight font-title">
-              Fav Lector
+            <span className="font-extrabold text-white text-base sm:text-lg tracking-tight font-title lowercase">
+              spaceuni
             </span>
           </div>
 
@@ -727,7 +727,7 @@ export function LectorBattlePage() {
       {/* FOOTER */}
       <footer className="border-t border-white/[0.06] bg-[#0A0C10] py-6 text-center text-xs text-stone-500 mt-8">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© 2026 Fav Lector • BTU minimal premium platform</p>
+          <p>© 2026 spaceuni • BTU minimal premium platform</p>
           <div className="flex items-center gap-2 text-stone-500">
             <Sparkles className="w-3.5 h-3.5 text-[#C8A97E]" />
             <span>ხმები განახლდება რეალურ დროში</span>
@@ -751,7 +751,7 @@ export function LectorBattlePage() {
                   <h3 className="text-lg font-bold text-white font-title">
                     {modalView === 'rating' && 'სრული რეიტინგი'}
                     {modalView === 'stats' && 'პლატფორმის სტატისტიკა'}
-                    {modalView === 'about' && 'Fav Lector-ის შესახებ'}
+                    {modalView === 'about' && 'spaceuni-ს შესახებ'}
                   </h3>
                   <p className="text-xs text-stone-400">
                     {modalView === 'rating' && 'BTU-ს ლექტორების ცოცხალი რეიტინგი'}
@@ -849,7 +849,7 @@ export function LectorBattlePage() {
             {modalView === 'about' && (
               <div className="space-y-3.5 text-xs sm:text-sm text-stone-300 leading-relaxed">
                 <p>
-                  <strong>Fav Lector</strong> არის სტუდენტებისთვის შექმნილი პლატფორმა, სადაც მარტივად, პირისპირ ბრძოლებით (Head-to-Head Versus) ირჩევა BTU-ს საყვარელი ლექტორი.
+                  <strong>spaceuni</strong> არის სტუდენტებისთვის შექმნილი პლატფორმა, სადაც მარტივად, პირისპირ ბრძოლებით (Head-to-Head Versus) ირჩევა BTU-ს საყვარელი ლექტორი.
                 </p>
                 <div className="space-y-2 pt-2">
                   <div className="flex items-start gap-2">

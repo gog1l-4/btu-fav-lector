@@ -31,7 +31,7 @@ function FullPageLoader() {
         <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white font-extrabold flex items-center justify-center mx-auto animate-pulse">
           SU
         </div>
-        <p className="text-xs font-semibold text-slate-500">SwapU იტვირთება...</p>
+        <p className="text-xs font-semibold text-slate-500">spaceuni იტვირთება...</p>
       </div>
     </div>
   );

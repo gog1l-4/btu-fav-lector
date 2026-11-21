@@ -385,7 +385,7 @@ export function AdminBattlePage() {
             <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center mx-auto text-indigo-400">
               <KeyRound className="w-7 h-7" />
             </div>
-            <h1 className="text-2xl font-black text-white">Fav Lector ადმინი</h1>
+            <h1 className="text-2xl font-black text-white">spaceuni ადმინი</h1>
             <p className="text-xs text-slate-400">
               შეიყვანეთ ადმინისტრატორის PIN კოდი (default: <code className="text-indigo-300">btu2026</code>)
             </p>
@@ -453,7 +453,7 @@ export function AdminBattlePage() {
             </Link>
             <div>
               <h1 className="font-bold text-white text-base flex items-center gap-2">
-                <span>Fav Lector ადმინ პანელი</span>
+                <span>spaceuni ადმინ პანელი</span>
                 <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   ავტორიზებული
                 </span>

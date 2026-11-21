@@ -129,7 +129,7 @@ export async function generateInstagramStory(battle: LectorBattle): Promise<stri
   ctx.font = 'bold 30px system-ui, -apple-system, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🔥 BTU • FAV LECTOR ARENA', 540, 136);
+  ctx.fillText('🔥 SPACEUNI • BTU ARENA', 540, 136);
 
   // Main Title
   ctx.fillStyle = '#FFFFFF';
@@ -283,7 +283,7 @@ export async function generateInstagramStory(battle: LectorBattle): Promise<stri
 
   ctx.fillStyle = '#FFFFFF';
   ctx.font = '800 32px system-ui, -apple-system, sans-serif';
-  ctx.fillText('FAV LECTOR • სტუდენტური არჩევანი', 540, 1740);
+  ctx.fillText('SPACEUNI • სტუდენტური არჩევანი', 540, 1740);
 
   return canvas.toDataURL('image/png');
 }
