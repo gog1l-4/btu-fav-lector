@@ -281,6 +281,7 @@ export function LectorBattlePage() {
               <img
                 src={battle.lector1Photo}
                 alt={battle.lector1Name}
+                referrerPolicy="no-referrer"
                 className="w-full h-full object-cover object-center"
                 loading="eager"
               />
@@ -384,6 +385,7 @@ export function LectorBattlePage() {
               <img
                 src={battle.lector2Photo}
                 alt={battle.lector2Name}
+                referrerPolicy="no-referrer"
                 className="w-full h-full object-cover object-center"
                 loading="eager"
               />

@@ -103,7 +103,7 @@ export function AdminBattlePage() {
     }
   }
 
-  // Upload Photo handler
+  // Upload / Process Photo handler
   async function handleFileUpload(file: File, lectorNum: 1 | 2) {
     if (!file) return;
 
@@ -112,34 +112,51 @@ export function AdminBattlePage() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('photo', file);
-
     const setUploading = lectorNum === 1 ? setUploading1 : setUploading2;
     const setPhoto = lectorNum === 1 ? setLector1Photo : setLector2Photo;
 
     try {
       setUploading(true);
-      const res = await fetch('/api/battles/upload', {
-        method: 'POST',
-        headers: {
-          'x-admin-pin': pin,
-        },
-        body: formData,
-      });
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => null);
-        throw new Error(errorData?.message || 'ატვირთვა ვერ მოხერხდა');
-      }
-
-      const data = await res.json();
-      setPhoto(data.url);
-      showToast(`ლექტორი ${lectorNum}-ის ფოტო წარმატებით აიტვირთა!`, 'success');
+      // Convert and compress directly in browser so it works 100% reliably on Cloud
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const rawUrl = e.target?.result as string;
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 800;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, w, h);
+          const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setPhoto(optimizedDataUrl);
+          setUploading(false);
+          showToast(`ლექტორი ${lectorNum}-ის ფოტო მზადაა! 📸`, 'success');
+        };
+        img.onerror = () => {
+          setPhoto(rawUrl);
+          setUploading(false);
+          showToast(`ლექტორი ${lectorNum}-ის ფოტო აიტვირთა!`, 'success');
+        };
+        img.src = rawUrl;
+      };
+      reader.readAsDataURL(file);
     } catch (err: any) {
-      showToast(err.message || 'სურათის ატვირთვა ვერ მოხერხდა', 'error');
-    } finally {
       setUploading(false);
+      showToast(err.message || 'სურათის დამუშავება ვერ მოხერხდა', 'error');
     }
   }
 
@@ -460,6 +477,7 @@ export function AdminBattlePage() {
                         <img
                           src={lector1Photo}
                           alt="Preview 1"
+                          referrerPolicy="no-referrer"
                           className="w-full h-full object-cover object-center"
                         />
                       ) : (
@@ -558,6 +576,7 @@ export function AdminBattlePage() {
                         <img
                           src={lector2Photo}
                           alt="Preview 2"
+                          referrerPolicy="no-referrer"
                           className="w-full h-full object-cover object-center"
                         />
                       ) : (
@@ -688,11 +707,13 @@ export function AdminBattlePage() {
                       <img
                         src={b.lector1Photo}
                         alt={b.lector1Name}
+                        referrerPolicy="no-referrer"
                         className="w-12 h-12 rounded-xl object-cover border-2 border-indigo-500 shadow"
                       />
                       <img
                         src={b.lector2Photo}
                         alt={b.lector2Name}
+                        referrerPolicy="no-referrer"
                         className="w-12 h-12 rounded-xl object-cover border-2 border-pink-500 shadow"
                       />
                     </div>
