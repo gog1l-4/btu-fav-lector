@@ -40,6 +40,38 @@ function cleanPhotoUrl(url?: string | null): string {
   return trimmed;
 }
 
+function LeaderboardAvatar({ src, name, size = 'sm' }: { src: string; name: string; size?: 'sm' | 'md' }) {
+  const [failed, setFailed] = useState(false);
+  const clean = cleanPhotoUrl(src);
+  const sizeClasses = size === 'sm' ? 'w-8 h-8 sm:w-10 sm:h-10 text-xs' : 'w-10 h-10 text-sm';
+
+  if (!clean || failed) {
+    const initials = name
+      .split(' ')
+      .filter(Boolean)
+      .map((part) => part[0])
+      .slice(0, 2)
+      .join('');
+    return (
+      <div
+        className={`${sizeClasses} rounded-full bg-white/10 text-stone-300 font-bold flex items-center justify-center border border-white/10 flex-shrink-0 font-title`}
+      >
+        {initials || 'UG'}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={clean}
+      alt={name}
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className={`${sizeClasses} rounded-full object-cover border border-white/10 flex-shrink-0`}
+    />
+  );
+}
+
 function LaurelLeft() {
   return (
     <svg className="w-8 h-8 sm:w-11 sm:h-11 text-[#C8A97E]/80 flex-shrink-0" viewBox="0 0 48 48" fill="currentColor">
@@ -89,7 +121,7 @@ export function LectorBattlePage() {
         if (data.stats) {
           setStats(data.stats);
         }
-        if (data.leaderboard && data.leaderboard.length > 0) {
+        if (data.leaderboard) {
           setLeaderboard(data.leaderboard);
         }
       } catch (err: any) {
@@ -635,57 +667,58 @@ export function LectorBattlePage() {
 
             {/* Ranked List */}
             <div className="space-y-3 sm:space-y-4">
-              {leaderboard.slice(0, 5).map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between gap-3 p-1.5 sm:p-2 rounded-2xl hover:bg-white/[0.03] transition"
-                >
-                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                    {/* Rank Circle */}
-                    <div
-                      className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-[11px] font-black flex-shrink-0 font-title ${
-                        item.rank === 1
-                          ? 'bg-[#D8BE93] text-stone-950'
-                          : item.rank === 2
-                          ? 'bg-stone-300 text-stone-900'
-                          : item.rank === 3
-                          ? 'bg-[#B8865A] text-white'
-                          : 'bg-white/10 text-stone-400'
-                      }`}
-                    >
-                      {item.rank}
-                    </div>
+              {leaderboard.length === 0 ? (
+                <div className="py-6 text-center text-xs text-stone-500">
+                  რეიტინგი ჯერ ცარიელია
+                </div>
+              ) : (
+                leaderboard.slice(0, 5).map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-3 p-1.5 sm:p-2 rounded-2xl hover:bg-white/[0.03] transition"
+                  >
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                      {/* Rank Circle */}
+                      <div
+                        className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-[11px] font-black flex-shrink-0 font-title ${
+                          item.rank === 1
+                            ? 'bg-[#D8BE93] text-stone-950'
+                            : item.rank === 2
+                            ? 'bg-stone-300 text-stone-900'
+                            : item.rank === 3
+                            ? 'bg-[#B8865A] text-white'
+                            : 'bg-white/10 text-stone-400'
+                        }`}
+                      >
+                        {item.rank}
+                      </div>
 
-                    {/* Avatar */}
-                    <img
-                      src={cleanPhotoUrl(item.avatar)}
-                      alt={item.name}
-                      referrerPolicy="no-referrer"
-                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border border-white/10 flex-shrink-0"
-                    />
+                      {/* Avatar */}
+                      <LeaderboardAvatar src={item.avatar} name={item.name} size="sm" />
 
-                    {/* Name */}
-                    <div className="truncate">
-                      <div className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate font-title">
-                        <span className="truncate">{item.name}</span>
-                        {item.isCrown && (
-                          <Crown className="w-3.5 h-3.5 text-[#D8BE93] fill-[#D8BE93] flex-shrink-0" />
+                      {/* Name */}
+                      <div className="truncate">
+                        <div className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate font-title">
+                          <span className="truncate">{item.name}</span>
+                          {item.isCrown && (
+                            <Crown className="w-3.5 h-3.5 text-[#D8BE93] fill-[#D8BE93] flex-shrink-0" />
+                          )}
+                        </div>
+                        {item.subject && (
+                          <div className="text-[10px] text-stone-400 truncate">
+                            {item.subject}
+                          </div>
                         )}
                       </div>
-                      {item.subject && (
-                        <div className="text-[10px] text-stone-400 truncate">
-                          {item.subject}
-                        </div>
-                      )}
+                    </div>
+
+                    {/* Percentage */}
+                    <div className="text-xs sm:text-sm font-bold text-stone-300 flex-shrink-0 font-title">
+                      {item.percent}%
                     </div>
                   </div>
-
-                  {/* Percentage */}
-                  <div className="text-xs sm:text-sm font-bold text-stone-300 flex-shrink-0 font-title">
-                    {item.percent}%
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </aside>
         </div>
@@ -742,44 +775,45 @@ export function LectorBattlePage() {
             {/* Modal Body - Rating View */}
             {modalView === 'rating' && (
               <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-                {leaderboard.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.03] border border-white/[0.05]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black font-title ${
-                          item.rank === 1
-                            ? 'bg-[#D8BE93] text-stone-950'
-                            : item.rank === 2
-                            ? 'bg-stone-300 text-stone-900'
-                            : item.rank === 3
-                            ? 'bg-[#B8865A] text-white'
-                            : 'bg-white/10 text-stone-300'
-                        }`}
-                      >
-                        {item.rank}
-                      </div>
-                      <img
-                        src={item.avatar}
-                        alt={item.name}
-                        referrerPolicy="no-referrer"
-                        className="w-10 h-10 rounded-full object-cover border border-white/10"
-                      />
-                      <div>
-                        <div className="text-sm font-bold text-white flex items-center gap-1.5 font-title">
-                          <span>{item.name}</span>
-                          {item.isCrown && <Crown className="w-3.5 h-3.5 text-[#D8BE93] fill-[#D8BE93]" />}
-                        </div>
-                        <div className="text-xs text-stone-400">{item.subject || 'BTU ლექტორი'}</div>
-                      </div>
-                    </div>
-                    <div className="text-sm font-black text-[#D8BE93] font-title">
-                      {item.percent}%
-                    </div>
+                {leaderboard.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-stone-500">
+                    რეიტინგი ჯერ ცარიელია
                   </div>
-                ))}
+                ) : (
+                  leaderboard.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.03] border border-white/[0.05]"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black font-title ${
+                            item.rank === 1
+                              ? 'bg-[#D8BE93] text-stone-950'
+                              : item.rank === 2
+                              ? 'bg-stone-300 text-stone-900'
+                              : item.rank === 3
+                              ? 'bg-[#B8865A] text-white'
+                              : 'bg-white/10 text-stone-300'
+                          }`}
+                        >
+                          {item.rank}
+                        </div>
+                        <LeaderboardAvatar src={item.avatar} name={item.name} size="md" />
+                        <div>
+                          <div className="text-sm font-bold text-white flex items-center gap-1.5 font-title">
+                            <span>{item.name}</span>
+                            {item.isCrown && <Crown className="w-3.5 h-3.5 text-[#D8BE93] fill-[#D8BE93]" />}
+                          </div>
+                          <div className="text-xs text-stone-400">{item.subject || 'BTU ლექტორი'}</div>
+                        </div>
+                      </div>
+                      <div className="text-sm font-black text-[#D8BE93] font-title">
+                        {item.percent}%
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 

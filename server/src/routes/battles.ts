@@ -367,23 +367,35 @@ router.get(
     const allVotesCount = await prisma.lectorVote.count();
     const totalBattlesCount = allBattles.length;
     
-    // Calculate REAL leaderboard from battles data
-    const lectorStatsMap = new Map<string, { name: string; subject: string; photo: string; votes: number; totalBattlesCount: number }>();
+    // Calculate REAL leaderboard from battles data (NO FAKE / SUPPLEMENTARY DATA)
+    const lectorStatsMap = new Map<string, { 
+      name: string; 
+      subject: string; 
+      photo: string; 
+      votes: number; 
+      totalOpponentVotes: number;
+      battlesCount: number;
+    }>();
 
     for (const b of allBattles) {
+      const v1 = b.lector1Votes || 0;
+      const v2 = b.lector2Votes || 0;
+
       // Lector 1
       if (!lectorStatsMap.has(b.lector1Name)) {
         lectorStatsMap.set(b.lector1Name, {
           name: b.lector1Name,
           subject: b.lector1Subject,
-          photo: b.lector1Photo,
-          votes: b.lector1Votes,
-          totalBattlesCount: 1,
+          photo: cleanPhotoUrl(b.lector1Photo),
+          votes: v1,
+          totalOpponentVotes: v2,
+          battlesCount: 1,
         });
       } else {
         const item = lectorStatsMap.get(b.lector1Name)!;
-        item.votes += b.lector1Votes;
-        item.totalBattlesCount += 1;
+        item.votes += v1;
+        item.totalOpponentVotes += v2;
+        item.battlesCount += 1;
       }
 
       // Lector 2
@@ -391,24 +403,32 @@ router.get(
         lectorStatsMap.set(b.lector2Name, {
           name: b.lector2Name,
           subject: b.lector2Subject,
-          photo: b.lector2Photo,
-          votes: b.lector2Votes,
-          totalBattlesCount: 1,
+          photo: cleanPhotoUrl(b.lector2Photo),
+          votes: v2,
+          totalOpponentVotes: v1,
+          battlesCount: 1,
         });
       } else {
         const item = lectorStatsMap.get(b.lector2Name)!;
-        item.votes += b.lector2Votes;
-        item.totalBattlesCount += 1;
+        item.votes += v2;
+        item.totalOpponentVotes += v1;
+        item.battlesCount += 1;
       }
     }
 
     // Sort by votes descending
-    const sortedLectors = Array.from(lectorStatsMap.values()).sort((a, b) => b.votes - a.votes);
-    const maxVotes = sortedLectors[0]?.votes || 1;
+    const sortedLectors = Array.from(lectorStatsMap.values()).sort((a, b) => {
+      if (b.votes !== a.votes) return b.votes - a.votes;
+      return (b.totalOpponentVotes === 0 ? 1 : 0) - (a.totalOpponentVotes === 0 ? 1 : 0);
+    });
 
-    let dynamicLeaderboard = sortedLectors.map((l, index) => {
-      // Calculate realistic percentage based on relative vote strength
-      const percent = Math.min(98, Math.max(50, Math.round((l.votes / (maxVotes || 1)) * 30 + 68)));
+    const dynamicLeaderboard = sortedLectors.map((l, index) => {
+      const totalBattleVotes = l.votes + l.totalOpponentVotes;
+      // Real mathematical win percentage:
+      const percent = totalBattleVotes > 0 
+        ? Math.round((l.votes / totalBattleVotes) * 100) 
+        : 50;
+
       return {
         id: `lector-${index + 1}`,
         rank: index + 1,
@@ -417,68 +437,19 @@ router.get(
         isCrown: index === 0,
         percent: percent,
         votes: l.votes,
-        avatar: l.photo,
+        avatar: cleanPhotoUrl(l.photo),
       };
     });
 
-    // If less than 5 lectors in DB yet, supplement with BTU lecturers
-    if (dynamicLeaderboard.length < 5) {
-      const defaultLectors = [
-        {
-          id: 'def-1',
-          rank: dynamicLeaderboard.length + 1,
-          name: 'ნინო კაპანაძე',
-          subject: 'UI/UX & Design',
-          isCrown: dynamicLeaderboard.length === 0,
-          percent: 78,
-          votes: 142,
-          avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-        },
-        {
-          id: 'def-2',
-          rank: dynamicLeaderboard.length + 2,
-          name: 'გიორგი მელაძე',
-          subject: 'Computer Science',
-          isCrown: false,
-          percent: 76,
-          votes: 135,
-          avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-        },
-        {
-          id: 'def-3',
-          rank: dynamicLeaderboard.length + 3,
-          name: 'თამარ ნელოიძე',
-          subject: 'Data Science',
-          isCrown: false,
-          percent: 72,
-          votes: 120,
-          avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-        },
-        {
-          id: 'def-4',
-          rank: dynamicLeaderboard.length + 4,
-          name: 'ლევან ქარდავა',
-          subject: 'Cyber Security',
-          isCrown: false,
-          percent: 68,
-          votes: 98,
-          avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
-        },
-      ];
-      dynamicLeaderboard = [...dynamicLeaderboard, ...defaultLectors.slice(0, 5 - dynamicLeaderboard.length)];
-      // Re-assign ranks 1..5
-      dynamicLeaderboard.forEach((item, idx) => {
-        item.rank = idx + 1;
-        item.isCrown = idx === 0;
-      });
-    }
-
-    const totalLectorsCount = Math.max(lectorStatsMap.size, 12);
+    const totalLectorsCount = lectorStatsMap.size;
+    const realTotalVotes = allVotesCount > 0 
+      ? allVotesCount 
+      : allBattles.reduce((sum, b) => sum + (b.lector1Votes || 0) + (b.lector2Votes || 0), 0);
 
     res.json({
       battles: computedBattles,
       stats: {
-        totalVotes: allVotesCount > 0 ? allVotesCount : computedBattles.reduce((a, b) => a + b.totalVotes, 0),
+        totalVotes: realTotalVotes,
         totalBattles: totalBattlesCount,
         totalLectors: totalLectorsCount,
         activeLectors: totalLectorsCount,
