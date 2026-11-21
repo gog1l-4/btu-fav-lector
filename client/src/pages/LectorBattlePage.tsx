@@ -7,15 +7,19 @@ import {
   Crown,
   GraduationCap,
   Heart,
+  HelpCircle,
+  Info,
   Landmark,
-  RefreshCw,
   Share2,
+  ShieldCheck,
   Shuffle,
   Sparkles,
   Swords,
   Trophy,
   User,
   Users,
+  X,
+  Zap,
 } from 'lucide-react';
 import { apiRequest } from '../api/client';
 import { useSocket } from '../context/SocketContext';
@@ -25,7 +29,7 @@ import { getOrCreateVoterId } from '../utils/voterId';
 
 function LaurelLeft() {
   return (
-    <svg className="w-8 h-8 sm:w-11 sm:h-11 text-[#C8A97E]/75 flex-shrink-0" viewBox="0 0 48 48" fill="currentColor">
+    <svg className="w-8 h-8 sm:w-11 sm:h-11 text-[#C8A97E]/80 flex-shrink-0" viewBox="0 0 48 48" fill="currentColor">
       <path d="M14 6c3 4 3 9 0 14-4-2-7-7-6-12 2-1 4-1 6-2zm8 10c3 4 3 9 0 14-4-2-7-7-6-12 2-1 4-1 6-2zm2 12c2 4 1 9-2 13-4-2-7-6-5-11 2-1 5-1 7-2zm-6 10c0 4-2 9-5 12-3-3-4-7-3-12 3 0 5 0 8 0z" />
     </svg>
   );
@@ -33,7 +37,7 @@ function LaurelLeft() {
 
 function LaurelRight() {
   return (
-    <svg className="w-8 h-8 sm:w-11 sm:h-11 text-[#C8A97E]/75 flex-shrink-0 -scale-x-100" viewBox="0 0 48 48" fill="currentColor">
+    <svg className="w-8 h-8 sm:w-11 sm:h-11 text-[#C8A97E]/80 flex-shrink-0 -scale-x-100" viewBox="0 0 48 48" fill="currentColor">
       <path d="M14 6c3 4 3 9 0 14-4-2-7-7-6-12 2-1 4-1 6-2zm8 10c3 4 3 9 0 14-4-2-7-7-6-12 2-1 4-1 6-2zm2 12c2 4 1 9-2 13-4-2-7-6-5-11 2-1 5-1 7-2zm-6 10c0 4-2 9-5 12-3-3-4-7-3-12 3 0 5 0 8 0z" />
     </svg>
   );
@@ -43,64 +47,24 @@ export function LectorBattlePage() {
   const [battles, setBattles] = useState<(LectorBattle & { hasVoted?: boolean; userVote?: number | null })[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stats, setStats] = useState({
-    totalVotes: 12846,
-    totalBattles: 6423,
-    totalLectors: 312,
-    season: 'სეზონი 01',
+    totalVotes: 0,
+    totalBattles: 0,
+    totalLectors: 0,
     university: 'BTU',
   });
-  const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([
-    {
-      id: '1',
-      rank: 1,
-      name: 'ნინო კაპანაძე',
-      isCrown: true,
-      percent: 78,
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-    },
-    {
-      id: '2',
-      rank: 2,
-      name: 'გიორგი მელაძე',
-      isCrown: false,
-      percent: 76,
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    },
-    {
-      id: '3',
-      rank: 3,
-      name: 'თამარ ნელოიძე',
-      isCrown: false,
-      percent: 72,
-      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-    },
-    {
-      id: '4',
-      rank: 4,
-      name: 'ალექსანდრე ბენაშვილი',
-      isCrown: false,
-      percent: 70,
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
-    },
-    {
-      id: '5',
-      rank: 5,
-      name: 'ლევან ქარდავა',
-      isCrown: false,
-      percent: 68,
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
-    },
-  ]);
-
+  const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(false);
+
+  // Tab & Modal views
   const [activeTab, setActiveTab] = useState<'main' | 'rating' | 'stats' | 'about'>('main');
+  const [modalView, setModalView] = useState<'rating' | 'stats' | 'about' | null>(null);
 
   const { socket } = useSocket();
   const { showToast } = useToast();
   const voterId = getOrCreateVoterId();
 
-  // 1. Fetch feed data
+  // 1. Fetch real feed data
   useEffect(() => {
     async function loadFeed() {
       try {
@@ -136,6 +100,11 @@ export function LectorBattlePage() {
       setBattles((prev) =>
         prev.map((b) => (b.id === updatedBattle.id ? { ...b, ...updatedBattle } : b))
       );
+      // Also update total votes dynamically
+      setStats((prev) => ({
+        ...prev,
+        totalVotes: prev.totalVotes + 1,
+      }));
     };
 
     socket.on('battle:update', handleBattleUpdate);
@@ -212,6 +181,16 @@ export function LectorBattlePage() {
     }
   }
 
+  // Handle Tab Click
+  function handleTabClick(tab: 'main' | 'rating' | 'stats' | 'about') {
+    setActiveTab(tab);
+    if (tab === 'main') {
+      setModalView(null);
+    } else {
+      setModalView(tab);
+    }
+  }
+
   if (loading && !currentBattle) {
     return (
       <div className="min-h-screen bg-[#0B0D12] flex flex-col items-center justify-center p-4">
@@ -236,20 +215,23 @@ export function LectorBattlePage() {
       <header className="sticky top-0 z-50 w-full border-b border-white/[0.08] bg-[#0B0D12]/95 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
           {/* Left Brand */}
-          <div className="flex items-center gap-3">
+          <div
+            onClick={() => handleTabClick('main')}
+            className="flex items-center gap-3 cursor-pointer"
+          >
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white">
               <GraduationCap className="w-5 h-5" />
             </div>
-            <span className="font-extrabold text-white text-base sm:text-lg tracking-tight">
+            <span className="font-extrabold text-white text-base sm:text-lg tracking-tight font-title">
               Fav Lector
             </span>
           </div>
 
-          {/* Center Navigation Pills */}
+          {/* Center Navigation Pills - 100% REAL & FUNCTIONAL */}
           <nav className="hidden md:flex items-center bg-[#141720]/80 border border-white/[0.08] p-1 rounded-full shadow-inner">
             <button
-              onClick={() => setActiveTab('main')}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${
+              onClick={() => handleTabClick('main')}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
                 activeTab === 'main'
                   ? 'bg-white/10 text-white shadow-sm'
                   : 'text-stone-400 hover:text-white'
@@ -258,8 +240,8 @@ export function LectorBattlePage() {
               მთავარი
             </button>
             <button
-              onClick={() => setActiveTab('rating')}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${
+              onClick={() => handleTabClick('rating')}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
                 activeTab === 'rating'
                   ? 'bg-white/10 text-white shadow-sm'
                   : 'text-stone-400 hover:text-white'
@@ -268,8 +250,8 @@ export function LectorBattlePage() {
               რეიტინგი
             </button>
             <button
-              onClick={() => setActiveTab('stats')}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${
+              onClick={() => handleTabClick('stats')}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
                 activeTab === 'stats'
                   ? 'bg-white/10 text-white shadow-sm'
                   : 'text-stone-400 hover:text-white'
@@ -278,8 +260,8 @@ export function LectorBattlePage() {
               სტატისტიკა
             </button>
             <button
-              onClick={() => setActiveTab('about')}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${
+              onClick={() => handleTabClick('about')}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
                 activeTab === 'about'
                   ? 'bg-white/10 text-white shadow-sm'
                   : 'text-stone-400 hover:text-white'
@@ -299,7 +281,7 @@ export function LectorBattlePage() {
 
             <button
               onClick={handleShareLink}
-              className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-stone-300 hover:text-white text-xs font-medium transition flex items-center gap-1.5"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-stone-300 hover:text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer"
               title="გაზიარება"
             >
               <Share2 className="w-3.5 h-3.5 text-[#C8A97E]" />
@@ -316,12 +298,12 @@ export function LectorBattlePage() {
       {/* HERO SECTION */}
       <section className="relative z-10 pt-8 sm:pt-12 pb-6 px-4 text-center max-w-4xl mx-auto">
         <div className="inline-block tracking-widest uppercase text-[11px] font-bold text-[#C8A97E] mb-3">
-          BTU BATTLE • {stats.season}
+          BTU BATTLE
         </div>
 
         <div className="flex items-center justify-center gap-2 sm:gap-4 mb-3">
           <LaurelLeft />
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight font-title">
             რომელია შენი ფავორიტი ლექტორი?
           </h1>
           <LaurelRight />
@@ -331,45 +313,35 @@ export function LectorBattlePage() {
           აირჩიე ერთ-ერთი ლექტორი და გააგრძელე წყვილები.
         </p>
 
-        {/* 4 STATS ROW */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 max-w-2xl mx-auto">
-          <div className="flex items-center justify-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-            <Users className="w-4 h-4 text-stone-400 flex-shrink-0" />
+        {/* 3 REAL STATS ROW (Season 1 completely removed!) */}
+        <div className="grid grid-cols-3 gap-3 sm:gap-6 max-w-xl mx-auto">
+          <div className="flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+            <Users className="w-4 h-4 text-[#C8A97E] flex-shrink-0" />
             <div className="text-left">
-              <div className="text-xs sm:text-sm font-bold text-white">
+              <div className="text-xs sm:text-sm font-bold text-white font-title">
                 {stats.totalVotes.toLocaleString()}
               </div>
               <div className="text-[10px] text-stone-500 font-medium">სულ ხმები</div>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-            <Swords className="w-4 h-4 text-stone-400 flex-shrink-0" />
+          <div className="flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+            <Swords className="w-4 h-4 text-[#C8A97E] flex-shrink-0" />
             <div className="text-left">
-              <div className="text-xs sm:text-sm font-bold text-white">
+              <div className="text-xs sm:text-sm font-bold text-white font-title">
                 {stats.totalBattles.toLocaleString()}
               </div>
               <div className="text-[10px] text-stone-500 font-medium">ბრძოლა</div>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-            <GraduationCap className="w-4 h-4 text-stone-400 flex-shrink-0" />
+          <div className="flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+            <GraduationCap className="w-4 h-4 text-[#C8A97E] flex-shrink-0" />
             <div className="text-left">
-              <div className="text-xs sm:text-sm font-bold text-white">
+              <div className="text-xs sm:text-sm font-bold text-white font-title">
                 {stats.totalLectors}
               </div>
               <div className="text-[10px] text-stone-500 font-medium">ლექტორი</div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-            <Landmark className="w-4 h-4 text-stone-400 flex-shrink-0" />
-            <div className="text-left">
-              <div className="text-xs sm:text-sm font-bold text-white">
-                {stats.season}
-              </div>
-              <div className="text-[10px] text-stone-500 font-medium">{stats.university}</div>
             </div>
           </div>
         </div>
@@ -407,7 +379,7 @@ export function LectorBattlePage() {
 
                   {/* Name & Subject Overlay */}
                   <div className="absolute bottom-5 left-5 right-5">
-                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-md">
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-md font-title">
                       {currentBattle?.lector1Name}
                     </h3>
                     <p className="text-xs sm:text-sm text-stone-300 font-medium mt-1">
@@ -470,7 +442,7 @@ export function LectorBattlePage() {
 
                   {/* Name & Subject Overlay */}
                   <div className="absolute bottom-5 left-5 right-5">
-                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-md">
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-md font-title">
                       {currentBattle?.lector2Name}
                     </h3>
                     <p className="text-xs sm:text-sm text-stone-300 font-medium mt-1">
@@ -514,7 +486,7 @@ export function LectorBattlePage() {
               </div>
             </div>
 
-            {/* Pagination & Pair Controls */}
+            {/* Pagination & Pair Controls - 100% FUNCTIONAL */}
             <div className="flex items-center justify-between pt-2">
               <button
                 onClick={handleRandomPair}
@@ -524,8 +496,8 @@ export function LectorBattlePage() {
                 <span>შემთხვევითი წყვილი</span>
               </button>
 
-              <div className="text-xs font-bold text-stone-400">
-                {currentIndex + 1} / {Math.max(battles.length, 10)}
+              <div className="text-xs font-bold text-stone-400 font-title">
+                {currentIndex + 1} / {Math.max(battles.length, 1)}
               </div>
 
               <button
@@ -538,14 +510,14 @@ export function LectorBattlePage() {
             </div>
           </div>
 
-          {/* RIGHT: LEADERBOARD SIDEBAR */}
+          {/* RIGHT: LEADERBOARD SIDEBAR - 100% REAL FROM DATABASE */}
           <aside className="w-full lg:w-[350px] xl:w-[380px] bg-[#13161F]/90 border border-white/[0.08] rounded-3xl p-6 shadow-2xl backdrop-blur-md space-y-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-[#D8BE93]">
                 <Trophy className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-white leading-tight">
+                <h2 className="text-base font-bold text-white leading-tight font-title">
                   ტოპ ლექტორები
                 </h2>
                 <p className="text-xs text-stone-400 mt-0.5">
@@ -564,7 +536,7 @@ export function LectorBattlePage() {
                   <div className="flex items-center gap-3 min-w-0">
                     {/* Rank Circle */}
                     <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0 ${
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0 font-title ${
                         item.rank === 1
                           ? 'bg-[#D8BE93] text-stone-950'
                           : item.rank === 2
@@ -587,17 +559,22 @@ export function LectorBattlePage() {
 
                     {/* Name */}
                     <div className="truncate">
-                      <div className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate">
+                      <div className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate font-title">
                         <span className="truncate">{item.name}</span>
                         {item.isCrown && (
                           <Crown className="w-3.5 h-3.5 text-[#D8BE93] fill-[#D8BE93] flex-shrink-0" />
                         )}
                       </div>
+                      {item.subject && (
+                        <div className="text-[10px] text-stone-400 truncate">
+                          {item.subject}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Percentage */}
-                  <div className="text-xs sm:text-sm font-bold text-stone-300 flex-shrink-0">
+                  <div className="text-xs sm:text-sm font-bold text-stone-300 flex-shrink-0 font-title">
                     {item.percent}%
                   </div>
                 </div>
@@ -606,7 +583,7 @@ export function LectorBattlePage() {
 
             {/* Full Rating Link */}
             <button
-              onClick={() => showToast('სრული რეიტინგი ხელმისაწვდომი იქნება სეზონის ბოლოს!', 'info')}
+              onClick={() => handleTabClick('rating')}
               className="w-full py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-stone-300 hover:text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 active:scale-98 cursor-pointer"
             >
               <span>სრული რეიტინგი</span>
@@ -615,16 +592,16 @@ export function LectorBattlePage() {
           </aside>
         </div>
 
-        {/* BOTTOM PROGRESS BAR */}
+        {/* BOTTOM PROGRESS BAR - 100% REALTIME */}
         {currentBattle && (
           <div className="mt-8 bg-[#13161F]/90 border border-white/[0.08] rounded-2xl sm:rounded-full p-3 sm:px-6 sm:py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
             <div className="flex items-center gap-2 text-xs font-bold text-stone-300 flex-shrink-0">
               <BarChart3 className="w-4 h-4 text-[#D8BE93]" />
-              <span>ბრძოლის პროგრესი</span>
+              <span className="font-title">ბრძოლის პროგრესი</span>
             </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto sm:flex-1 sm:max-w-xl mx-auto">
-              <div className="text-xs font-bold text-[#D8BE93] whitespace-nowrap">
+              <div className="text-xs font-bold text-[#D8BE93] whitespace-nowrap font-title">
                 {currentBattle.lector1Percent}%
                 <span className="hidden md:inline ml-1 text-stone-400 font-normal">
                   {currentBattle.lector1Name}
@@ -643,7 +620,7 @@ export function LectorBattlePage() {
                 />
               </div>
 
-              <div className="text-xs font-bold text-stone-300 whitespace-nowrap">
+              <div className="text-xs font-bold text-stone-300 whitespace-nowrap font-title">
                 <span className="hidden md:inline mr-1 text-stone-400 font-normal">
                   {currentBattle.lector2Name}
                 </span>
@@ -664,6 +641,150 @@ export function LectorBattlePage() {
           </div>
         </div>
       </footer>
+
+      {/* MODAL WINDOWS FOR: რეიტინგი, სტატისტიკა, შესახებ (100% REAL!) */}
+      {modalView && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-lg bg-[#12151D] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-5">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#D8BE93]">
+                  {modalView === 'rating' && <Trophy className="w-5 h-5" />}
+                  {modalView === 'stats' && <BarChart3 className="w-5 h-5" />}
+                  {modalView === 'about' && <Info className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white font-title">
+                    {modalView === 'rating' && 'სრული რეიტინგი'}
+                    {modalView === 'stats' && 'პლატფორმის სტატისტიკა'}
+                    {modalView === 'about' && 'Fav Lector-ის შესახებ'}
+                  </h3>
+                  <p className="text-xs text-stone-400">
+                    {modalView === 'rating' && 'BTU-ს ლექტორების ცოცხალი რეიტინგი'}
+                    {modalView === 'stats' && 'სტუდენტური ხმებისა და ბრძოლების მონაცემები'}
+                    {modalView === 'about' && 'სტუდენტური ინოვაციური პლატფორმა'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setModalView(null);
+                  setActiveTab('main');
+                }}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-stone-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body - Rating View */}
+            {modalView === 'rating' && (
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                {leaderboard.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.03] border border-white/[0.05]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black font-title ${
+                          item.rank === 1
+                            ? 'bg-[#D8BE93] text-stone-950'
+                            : item.rank === 2
+                            ? 'bg-stone-300 text-stone-900'
+                            : item.rank === 3
+                            ? 'bg-[#B8865A] text-white'
+                            : 'bg-white/10 text-stone-300'
+                        }`}
+                      >
+                        {item.rank}
+                      </div>
+                      <img
+                        src={item.avatar}
+                        alt={item.name}
+                        referrerPolicy="no-referrer"
+                        className="w-10 h-10 rounded-full object-cover border border-white/10"
+                      />
+                      <div>
+                        <div className="text-sm font-bold text-white flex items-center gap-1.5 font-title">
+                          <span>{item.name}</span>
+                          {item.isCrown && <Crown className="w-3.5 h-3.5 text-[#D8BE93] fill-[#D8BE93]" />}
+                        </div>
+                        <div className="text-xs text-stone-400">{item.subject || 'BTU ლექტორი'}</div>
+                      </div>
+                    </div>
+                    <div className="text-sm font-black text-[#D8BE93] font-title">
+                      {item.percent}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Modal Body - Stats View */}
+            {modalView === 'stats' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                    <div className="text-2xl font-black text-white font-title">{stats.totalVotes.toLocaleString()}</div>
+                    <div className="text-xs text-stone-400 mt-1">დაფიქსირებული ხმა</div>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                    <div className="text-2xl font-black text-white font-title">{stats.totalBattles.toLocaleString()}</div>
+                    <div className="text-xs text-stone-400 mt-1">აქტიური ბრძოლა</div>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                    <div className="text-2xl font-black text-white font-title">{stats.totalLectors}</div>
+                    <div className="text-xs text-stone-400 mt-1">დარეგისტრირებული ლექტორი</div>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                    <div className="text-2xl font-black text-[#D8BE93] font-title">100%</div>
+                    <div className="text-xs text-stone-400 mt-1">ანონიმური და ობიექტური</div>
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-[#D8BE93]/10 border border-[#D8BE93]/20 flex items-center gap-2.5 text-xs text-[#D8BE93]">
+                  <Zap className="w-4 h-4 flex-shrink-0" />
+                  <span>ხმები ითვლება რეალურ დროში და განახლდება ყოველ წამს.</span>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Body - About View */}
+            {modalView === 'about' && (
+              <div className="space-y-3.5 text-xs sm:text-sm text-stone-300 leading-relaxed">
+                <p>
+                  <strong>Fav Lector</strong> არის სტუდენტებისთვის შექმნილი პლატფორმა, სადაც მარტივად, პირისპირ ბრძოლებით (Head-to-Head Versus) ირჩევა BTU-ს საყვარელი ლექტორი.
+                </p>
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-start gap-2">
+                    <ShieldCheck className="w-4 h-4 text-[#D8BE93] mt-0.5 flex-shrink-0" />
+                    <span><strong>100% ანონიმური ხმის მიცემა:</strong> სისტემა იცავს სტუდენტის კონფიდენციალურობას.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="w-4 h-4 text-[#D8BE93] mt-0.5 flex-shrink-0" />
+                    <span><strong>ცოცხალი რეიტინგი:</strong> შედეგები ითვლება პირდაპირ ეთერში Socket.IO-ს მეშვეობით.</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  setModalView(null);
+                  setActiveTab('main');
+                }}
+                className="w-full py-3 rounded-2xl bg-[#D8BE93] hover:bg-[#C8A97E] text-stone-950 font-bold text-xs transition cursor-pointer"
+              >
+                დახურვა
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

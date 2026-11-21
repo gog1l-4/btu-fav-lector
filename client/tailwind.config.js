@@ -4,7 +4,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Noto Sans Georgian"', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        sans: ['"BPGNinoMedium"', '"Noto Sans Georgian"', 'system-ui', 'sans-serif'],
+        title: ['"DachiTheLynx"', '"BPGNinoMedium"', '"Noto Sans Georgian"', 'sans-serif'],
       },
       boxShadow: {
         card: '0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03)',

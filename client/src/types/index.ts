@@ -283,8 +283,10 @@ export interface LeaderboardItem {
   id: string;
   rank: number;
   name: string;
+  subject?: string;
   isCrown: boolean;
   percent: number;
+  votes?: number;
   avatar: string;
 }
 
@@ -294,7 +296,6 @@ export interface BattleFeedResponse {
     totalVotes: number;
     totalBattles: number;
     totalLectors: number;
-    season: string;
     university: string;
   };
   leaderboard: LeaderboardItem[];

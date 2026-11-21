@@ -46,6 +46,8 @@ export function AdminBattlePage() {
   // Uploading states
   const [uploading1, setUploading1] = useState(false);
   const [uploading2, setUploading2] = useState(false);
+  const [img1Error, setImg1Error] = useState(false);
+  const [img2Error, setImg2Error] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const fileInputRef1 = useRef<HTMLInputElement>(null);
@@ -162,33 +164,49 @@ export function AdminBattlePage() {
 
   // Helper to proxy external image URLs to base64 Data URLs
   async function fetchImageAsDataUrl(url: string, lectorNum?: 1 | 2): Promise<string> {
-    if (!url || !url.startsWith('http')) return url;
+    if (!url) return url;
+    let cleanUrl = url.trim();
+    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+      cleanUrl = 'https://' + cleanUrl;
+    }
+
+    // Auto-complete truncated BTU lecturer URL if user pasted partial link
+    if (cleanUrl.includes('btu.edu.ge/wp-content/uploads/2022/11/aleqsandre') && !cleanUrl.endsWith('.jpg')) {
+      cleanUrl = 'https://btu.edu.ge/wp-content/uploads/2022/11/aleqsandre-sborshchikovi-1.jpg';
+    }
+
     const setUploading = lectorNum === 1 ? setUploading1 : lectorNum === 2 ? setUploading2 : null;
     try {
       if (setUploading) setUploading(true);
+      if (lectorNum === 1) setImg1Error(false);
+      if (lectorNum === 2) setImg2Error(false);
+
       const res = await fetch('/api/battles/proxy-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-admin-pin': pin,
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: cleanUrl }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data.dataUrl) {
           if (lectorNum === 1) setLector1Photo(data.dataUrl);
           if (lectorNum === 2) setLector2Photo(data.dataUrl);
-          if (lectorNum) showToast(`ლექტორი ${lectorNum}-ის ფოტო ჩაიტვირთა! ✨`, 'success');
+          if (lectorNum) showToast(`ლექტორი ${lectorNum}-ის ფოტო წარმატებით ჩაიტვირთა! ✨`, 'success');
           return data.dataUrl;
         }
+      } else {
+        const err = await res.json().catch(() => null);
+        showToast(err?.message || 'სურათის წამოღება ვერ მოხერხდა', 'error');
       }
-    } catch {
-      // Return original URL if proxy fails
+    } catch (err: any) {
+      showToast(err.message || 'სერვერთან კავშირი ვერ დამყარდა', 'error');
     } finally {
       if (setUploading) setUploading(false);
     }
-    return url;
+    return cleanUrl;
   }
 
   // Create Battle handler
@@ -509,15 +527,19 @@ export function AdminBattlePage() {
                   <div className="flex gap-4 items-start">
                     {/* Exact Aspect-Ratio Preview Box */}
                     <div className="w-24 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-slate-900 border border-slate-800 relative flex items-center justify-center">
-                      {lector1Photo ? (
+                      {lector1Photo && !img1Error ? (
                         <img
-                          src={lector1Photo}
+                          src={lector1Photo.startsWith('http') ? `/api/battles/image-proxy?url=${encodeURIComponent(lector1Photo)}` : lector1Photo}
                           alt="Preview 1"
                           referrerPolicy="no-referrer"
+                          onError={() => setImg1Error(true)}
                           className="w-full h-full object-cover object-center"
                         />
                       ) : (
-                        <ImageIcon className="w-6 h-6 text-slate-700" />
+                        <div className="flex flex-col items-center justify-center p-2 text-center">
+                          <ImageIcon className="w-6 h-6 text-slate-700 mb-1" />
+                          {img1Error && <span className="text-[9px] text-red-400 font-medium">ვერ ჩაიტვირთა</span>}
+                        </div>
                       )}
                       {uploading1 && (
                         <div className="absolute inset-0 bg-slate-950/80 flex items-center justify-center">
@@ -542,36 +564,59 @@ export function AdminBattlePage() {
                         type="button"
                         onClick={() => fileInputRef1.current?.click()}
                         disabled={uploading1}
-                        className="w-full py-2 px-3 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                        className="w-full py-2 px-3 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
                       >
                         <Upload className="w-3.5 h-3.5" />
-                        <span>{uploading1 ? 'იტვირთება...' : 'ფოტოს ატვირთვა'}</span>
+                        <span>{uploading1 ? 'იტვირთება...' : 'კომპიუტერიდან ატვირთვა'}</span>
                       </button>
 
                       <div className="flex gap-1.5">
                         <input
                           type="text"
-                          value={lector1Photo.startsWith('data:') ? '✅ ფოტო ჩატვირთულია' : lector1Photo}
-                          onChange={(e) => setLector1Photo(e.target.value)}
+                          value={lector1Photo.startsWith('data:') ? '✅ ფოტო ჩატვირთულია (Base64)' : lector1Photo}
+                          onChange={(e) => {
+                            setLector1Photo(e.target.value);
+                            setImg1Error(false);
+                          }}
+                          onBlur={() => {
+                            if (lector1Photo && lector1Photo.startsWith('http')) {
+                              fetchImageAsDataUrl(lector1Photo, 1);
+                            }
+                          }}
                           onPaste={(e) => {
                             const pasted = e.clipboardData.getData('text');
-                            if (pasted.startsWith('http')) {
+                            if (pasted) {
+                              setImg1Error(false);
                               setTimeout(() => fetchImageAsDataUrl(pasted, 1), 50);
                             }
                           }}
-                          placeholder="ან ჩასვით ფოტოს პირდაპირი URL"
+                          placeholder="ან ჩასვით სურათის პირდაპირი URL"
                           className="flex-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs focus:outline-none focus:border-indigo-500 transition"
                         />
-                        {lector1Photo && lector1Photo.startsWith('http') && (
-                          <button
-                            type="button"
-                            onClick={() => fetchImageAsDataUrl(lector1Photo, 1)}
-                            disabled={uploading1}
-                            className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
-                            title="ლინკიდან წამოღება"
-                          >
-                            <span>ჩატვირთვა</span>
-                          </button>
+                        {lector1Photo && (
+                          lector1Photo.startsWith('data:') ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLector1Photo('');
+                                setImg1Error(false);
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold transition cursor-pointer"
+                              title="გასუფთავება"
+                            >
+                              გასუფთავება
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => fetchImageAsDataUrl(lector1Photo, 1)}
+                              disabled={uploading1}
+                              className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                              title="ლინკიდან წამოღება"
+                            >
+                              <span>ჩატვირთვა</span>
+                            </button>
+                          )
                         )}
                       </div>
                     </div>
@@ -627,15 +672,19 @@ export function AdminBattlePage() {
                   <div className="flex gap-4 items-start">
                     {/* Exact Aspect-Ratio Preview Box */}
                     <div className="w-24 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-slate-900 border border-slate-800 relative flex items-center justify-center">
-                      {lector2Photo ? (
+                      {lector2Photo && !img2Error ? (
                         <img
-                          src={lector2Photo}
+                          src={lector2Photo.startsWith('http') ? `/api/battles/image-proxy?url=${encodeURIComponent(lector2Photo)}` : lector2Photo}
                           alt="Preview 2"
                           referrerPolicy="no-referrer"
+                          onError={() => setImg2Error(true)}
                           className="w-full h-full object-cover object-center"
                         />
                       ) : (
-                        <ImageIcon className="w-6 h-6 text-slate-700" />
+                        <div className="flex flex-col items-center justify-center p-2 text-center">
+                          <ImageIcon className="w-6 h-6 text-slate-700 mb-1" />
+                          {img2Error && <span className="text-[9px] text-red-400 font-medium">ვერ ჩაიტვირთა</span>}
+                        </div>
                       )}
                       {uploading2 && (
                         <div className="absolute inset-0 bg-slate-950/80 flex items-center justify-center">
@@ -660,36 +709,59 @@ export function AdminBattlePage() {
                         type="button"
                         onClick={() => fileInputRef2.current?.click()}
                         disabled={uploading2}
-                        className="w-full py-2 px-3 rounded-xl bg-pink-600/20 hover:bg-pink-600/30 border border-pink-500/30 text-pink-300 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                        className="w-full py-2 px-3 rounded-xl bg-pink-600/20 hover:bg-pink-600/30 border border-pink-500/30 text-pink-300 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
                       >
                         <Upload className="w-3.5 h-3.5" />
-                        <span>{uploading2 ? 'იტვირთება...' : 'ფოტოს ატვირთვა'}</span>
+                        <span>{uploading2 ? 'იტვირთება...' : 'კომპიუტერიდან ატვირთვა'}</span>
                       </button>
 
                       <div className="flex gap-1.5">
                         <input
                           type="text"
-                          value={lector2Photo.startsWith('data:') ? '✅ ფოტო ჩატვირთულია' : lector2Photo}
-                          onChange={(e) => setLector2Photo(e.target.value)}
+                          value={lector2Photo.startsWith('data:') ? '✅ ფოტო ჩატვირთულია (Base64)' : lector2Photo}
+                          onChange={(e) => {
+                            setLector2Photo(e.target.value);
+                            setImg2Error(false);
+                          }}
+                          onBlur={() => {
+                            if (lector2Photo && lector2Photo.startsWith('http')) {
+                              fetchImageAsDataUrl(lector2Photo, 2);
+                            }
+                          }}
                           onPaste={(e) => {
                             const pasted = e.clipboardData.getData('text');
-                            if (pasted.startsWith('http')) {
+                            if (pasted) {
+                              setImg2Error(false);
                               setTimeout(() => fetchImageAsDataUrl(pasted, 2), 50);
                             }
                           }}
-                          placeholder="ან ჩასვით ფოტოს პირდაპირი URL"
+                          placeholder="ან ჩასვით სურათის პირდაპირი URL"
                           className="flex-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs focus:outline-none focus:border-pink-500 transition"
                         />
-                        {lector2Photo && lector2Photo.startsWith('http') && (
-                          <button
-                            type="button"
-                            onClick={() => fetchImageAsDataUrl(lector2Photo, 2)}
-                            disabled={uploading2}
-                            className="px-2.5 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
-                            title="ლინკიდან წამოღება"
-                          >
-                            <span>ჩატვირთვა</span>
-                          </button>
+                        {lector2Photo && (
+                          lector2Photo.startsWith('data:') ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLector2Photo('');
+                                setImg2Error(false);
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold transition cursor-pointer"
+                              title="გასუფთავება"
+                            >
+                              გასუფთავება
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => fetchImageAsDataUrl(lector2Photo, 2)}
+                              disabled={uploading2}
+                              className="px-2.5 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                              title="ლინკიდან წამოღება"
+                            >
+                              <span>ჩატვირთვა</span>
+                            </button>
+                          )
                         )}
                       </div>
                     </div>

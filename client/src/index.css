@@ -2,9 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'BPGNinoMedium';
+  src: url('/fonts/BPGNinoMedium.otf') format('opentype');
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DachiTheLynx';
+  src: url('/fonts/DachiTheLynx.otf') format('opentype');
+  font-weight: 700 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   body {
-    @apply bg-[#F8FAFC] text-slate-900 font-sans;
+    @apply bg-[#0B0D12] text-stone-100 font-sans;
+    font-family: 'BPGNinoMedium', 'Noto Sans Georgian', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-title, .font-bold, .font-black, .font-extrabold {
+    font-family: 'DachiTheLynx', 'BPGNinoMedium', 'Noto Sans Georgian', sans-serif;
   }
 }
 
