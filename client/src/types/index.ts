@@ -278,3 +278,24 @@ export interface BattleActiveResponse {
   hasVoted: boolean;
   userVote: number | null;
 }
+
+export interface LeaderboardItem {
+  id: string;
+  rank: number;
+  name: string;
+  isCrown: boolean;
+  percent: number;
+  avatar: string;
+}
+
+export interface BattleFeedResponse {
+  battles: (LectorBattle & { hasVoted?: boolean; userVote?: number | null })[];
+  stats: {
+    totalVotes: number;
+    totalBattles: number;
+    totalLectors: number;
+    season: string;
+    university: string;
+  };
+  leaderboard: LeaderboardItem[];
+}

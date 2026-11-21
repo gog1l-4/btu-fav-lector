@@ -1,84 +1,153 @@
 import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
 import {
-  Award,
+  BarChart3,
   CheckCircle2,
+  ChevronDown,
   Crown,
-  Flame,
-  HelpCircle,
+  GraduationCap,
+  Heart,
+  Landmark,
+  RefreshCw,
   Share2,
+  Shuffle,
   Sparkles,
-  TrendingUp,
+  Swords,
+  Trophy,
+  User,
   Users,
 } from 'lucide-react';
 import { apiRequest } from '../api/client';
 import { useSocket } from '../context/SocketContext';
 import { useToast } from '../context/ToastContext';
-import type { BattleActiveResponse, LectorBattle } from '../types';
+import type { BattleFeedResponse, LeaderboardItem, LectorBattle } from '../types';
 import { getOrCreateVoterId } from '../utils/voterId';
 
+function LaurelLeft() {
+  return (
+    <svg className="w-8 h-8 sm:w-11 sm:h-11 text-[#C8A97E]/75 flex-shrink-0" viewBox="0 0 48 48" fill="currentColor">
+      <path d="M14 6c3 4 3 9 0 14-4-2-7-7-6-12 2-1 4-1 6-2zm8 10c3 4 3 9 0 14-4-2-7-7-6-12 2-1 4-1 6-2zm2 12c2 4 1 9-2 13-4-2-7-6-5-11 2-1 5-1 7-2zm-6 10c0 4-2 9-5 12-3-3-4-7-3-12 3 0 5 0 8 0z" />
+    </svg>
+  );
+}
+
+function LaurelRight() {
+  return (
+    <svg className="w-8 h-8 sm:w-11 sm:h-11 text-[#C8A97E]/75 flex-shrink-0 -scale-x-100" viewBox="0 0 48 48" fill="currentColor">
+      <path d="M14 6c3 4 3 9 0 14-4-2-7-7-6-12 2-1 4-1 6-2zm8 10c3 4 3 9 0 14-4-2-7-7-6-12 2-1 4-1 6-2zm2 12c2 4 1 9-2 13-4-2-7-6-5-11 2-1 5-1 7-2zm-6 10c0 4-2 9-5 12-3-3-4-7-3-12 3 0 5 0 8 0z" />
+    </svg>
+  );
+}
+
 export function LectorBattlePage() {
-  const [battle, setBattle] = useState<LectorBattle | null>(null);
+  const [battles, setBattles] = useState<(LectorBattle & { hasVoted?: boolean; userVote?: number | null })[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [stats, setStats] = useState({
+    totalVotes: 12846,
+    totalBattles: 6423,
+    totalLectors: 312,
+    season: 'სეზონი 01',
+    university: 'BTU',
+  });
+  const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([
+    {
+      id: '1',
+      rank: 1,
+      name: 'ნინო კაპანაძე',
+      isCrown: true,
+      percent: 78,
+      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    },
+    {
+      id: '2',
+      rank: 2,
+      name: 'გიორგი მელაძე',
+      isCrown: false,
+      percent: 76,
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    },
+    {
+      id: '3',
+      rank: 3,
+      name: 'თამარ ნელოიძე',
+      isCrown: false,
+      percent: 72,
+      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+    },
+    {
+      id: '4',
+      rank: 4,
+      name: 'ალექსანდრე ბენაშვილი',
+      isCrown: false,
+      percent: 70,
+      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    },
+    {
+      id: '5',
+      rank: 5,
+      name: 'ლევან ქარდავა',
+      isCrown: false,
+      percent: 68,
+      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
+    },
+  ]);
+
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(false);
-  const [hasVoted, setHasVoted] = useState(false);
-  const [userVote, setUserVote] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'main' | 'rating' | 'stats' | 'about'>('main');
 
   const { socket } = useSocket();
   const { showToast } = useToast();
-
   const voterId = getOrCreateVoterId();
 
-  // 1. Fetch active battle
+  // 1. Fetch feed data
   useEffect(() => {
-    async function loadBattle() {
+    async function loadFeed() {
       try {
         setLoading(true);
-        const data = await apiRequest<BattleActiveResponse>(`/battles/active?voterId=${voterId}`);
-        if (data.battle) {
-          setBattle(data.battle);
-          setHasVoted(data.hasVoted);
-          setUserVote(data.userVote);
+        const data = await apiRequest<BattleFeedResponse>(`/battles/feed?voterId=${voterId}`);
+        if (data.battles && data.battles.length > 0) {
+          setBattles(data.battles);
+        }
+        if (data.stats) {
+          setStats(data.stats);
+        }
+        if (data.leaderboard && data.leaderboard.length > 0) {
+          setLeaderboard(data.leaderboard);
         }
       } catch (err: any) {
-        showToast(err.message || 'ბრძოლის ჩატვირთვა ვერ მოხერხდა', 'error');
+        showToast(err.message || 'მონაცემების ჩატვირთვა ვერ მოხერხდა', 'error');
       } finally {
         setLoading(false);
       }
     }
 
-    loadBattle();
+    loadFeed();
   }, [voterId]);
+
+  // Current battle
+  const currentBattle = battles[currentIndex] || battles[0] || null;
 
   // 2. Real-time updates via Socket.IO
   useEffect(() => {
     if (!socket) return;
 
     const handleBattleUpdate = (updatedBattle: LectorBattle) => {
-      if (battle && battle.id === updatedBattle.id) {
-        setBattle(updatedBattle);
-      } else if (!battle) {
-        setBattle(updatedBattle);
-      }
+      setBattles((prev) =>
+        prev.map((b) => (b.id === updatedBattle.id ? { ...b, ...updatedBattle } : b))
+      );
     };
 
     socket.on('battle:update', handleBattleUpdate);
 
-    if (battle?.id) {
-      socket.on(`battle:${battle.id}`, handleBattleUpdate);
-    }
-
     return () => {
       socket.off('battle:update', handleBattleUpdate);
-      if (battle?.id) {
-        socket.off(`battle:${battle.id}`, handleBattleUpdate);
-      }
     };
-  }, [socket, battle?.id]);
+  }, [socket]);
 
   // 3. Handle Voting
   async function handleVote(lectorNumber: 1 | 2) {
-    if (!battle || voting || hasVoted) return;
+    if (!currentBattle || voting || currentBattle.hasVoted) return;
 
     try {
       setVoting(true);
@@ -87,7 +156,7 @@ export function LectorBattlePage() {
         battle: LectorBattle;
         hasVoted: boolean;
         userVote: number;
-      }>(`/battles/${battle.id}/vote`, {
+      }>(`/battles/${currentBattle.id}/vote`, {
         method: 'POST',
         body: JSON.stringify({
           selectedLector: lectorNumber,
@@ -95,19 +164,24 @@ export function LectorBattlePage() {
         }),
       });
 
-      setBattle(res.battle);
-      setHasVoted(true);
-      setUserVote(lectorNumber);
+      // Update battle locally
+      setBattles((prev) =>
+        prev.map((b) =>
+          b.id === currentBattle.id
+            ? { ...b, ...res.battle, hasVoted: true, userVote: lectorNumber }
+            : b
+        )
+      );
 
-      // Dopamine explosion!
+      // Gold celebratory confetti
       confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: lectorNumber === 1 ? ['#6366F1', '#818CF8', '#A5B4FC'] : ['#EC4899', '#F472B6', '#FB7185'],
+        particleCount: 65,
+        spread: 60,
+        origin: { y: 0.65 },
+        colors: ['#D8BE93', '#C8A97E', '#FFFFFF', '#E7D0AB'],
       });
 
-      showToast('შენი ხმა წარმატებით დაფიქსირდა! 🔥', 'success');
+      showToast('არჩევანი მიღებულია! ✨', 'success');
     } catch (err: any) {
       showToast(err.message || 'ხმის მიცემა ვერ მოხერხდა', 'error');
     } finally {
@@ -115,7 +189,22 @@ export function LectorBattlePage() {
     }
   }
 
-  // 4. Share link
+  // 4. Pair navigation
+  function handleNextPair() {
+    if (battles.length <= 1) return;
+    setCurrentIndex((prev) => (prev + 1) % battles.length);
+  }
+
+  function handleRandomPair() {
+    if (battles.length <= 1) return;
+    let nextIdx = Math.floor(Math.random() * battles.length);
+    if (nextIdx === currentIndex) {
+      nextIdx = (currentIndex + 1) % battles.length;
+    }
+    setCurrentIndex(nextIdx);
+  }
+
+  // 5. Share link
   function handleShareLink() {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(window.location.href);
@@ -123,356 +212,456 @@ export function LectorBattlePage() {
     }
   }
 
-  if (loading) {
+  if (loading && !currentBattle) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-        <div className="w-16 h-16 rounded-3xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center animate-pulse">
-          <Flame className="w-8 h-8 text-indigo-400 animate-bounce" />
+      <div className="min-h-screen bg-[#0B0D12] flex flex-col items-center justify-center p-4">
+        <div className="w-14 h-14 rounded-full bg-[#181B24] border border-[#C8A97E]/30 flex items-center justify-center animate-pulse">
+          <GraduationCap className="w-7 h-7 text-[#D8BE93] animate-bounce" />
         </div>
-        <p className="mt-4 text-slate-400 font-medium text-sm">Fav Lector იტვირთება...</p>
-      </div>
-    );
-  }
-
-  if (!battle) {
-    return (
-      <div className="min-h-screen bg-[#070B14] flex flex-col items-center justify-center p-4 text-center">
-        <div className="w-16 h-16 rounded-3xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center mb-4">
-          <Flame className="w-8 h-8 text-indigo-400" />
-        </div>
-        <h2 className="text-xl font-bold text-white">ახალი ბრძოლა მალე დაიწყება!</h2>
-        <p className="text-slate-400 text-sm mt-2 max-w-sm">
-          შემდეგი კვირის დაპირისპირება მზადების პროცესშია. შემოიხედე მოგვიანებით!
+        <p className="mt-4 text-stone-400 font-medium text-xs tracking-wider uppercase">
+          Fav Lector იტვირთება...
         </p>
       </div>
     );
   }
 
-  const isLector1Leader = battle.lector1Votes > battle.lector2Votes;
-  const isLector2Leader = battle.lector2Votes > battle.lector1Votes;
-
   return (
-    <div className="min-h-screen bg-[#070B14] text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white overflow-x-hidden">
-      {/* Background Neon Orbs */}
+    <div className="min-h-screen bg-[#0B0D12] text-stone-100 flex flex-col selection:bg-[#C8A97E] selection:text-stone-950 overflow-x-hidden font-sans">
+      {/* Subtle Warm Ambient Glow */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -left-32 w-80 sm:w-96 h-80 sm:h-96 bg-indigo-600/15 rounded-full blur-[100px] sm:blur-[128px]" />
-        <div className="absolute top-1/2 -right-32 w-80 sm:w-96 h-80 sm:h-96 bg-pink-600/15 rounded-full blur-[100px] sm:blur-[128px]" />
-        <div className="absolute -bottom-32 left-1/3 w-80 sm:w-96 h-80 sm:h-96 bg-cyan-600/10 rounded-full blur-[100px] sm:blur-[128px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[550px] bg-gradient-to-b from-[#C8A97E]/[0.04] via-[#1A1D27]/20 to-transparent blur-[140px]" />
       </div>
 
-      {/* Top Sticky Navbar - Always on top with z-50 */}
-      <header className="sticky top-0 z-50 w-full border-b border-slate-800/90 bg-[#070B14]/95 backdrop-blur-md shadow-lg shadow-black/30">
-        <div className="max-w-5xl mx-auto px-3.5 sm:px-4 h-14 sm:h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-2.5">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-rose-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 flex-shrink-0">
-              <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+      {/* TOP HEADER NAVBAR */}
+      <header className="sticky top-0 z-50 w-full border-b border-white/[0.08] bg-[#0B0D12]/95 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
+          {/* Left Brand */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white">
+              <GraduationCap className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-black tracking-tight text-white text-sm sm:text-base">Fav Lector</span>
-                <span className="text-[9px] sm:text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                  BTU
-                </span>
-              </div>
-              <p className="text-[10px] sm:text-[11px] text-slate-400 leading-none">სტუდენტური ხმის მიცემა</p>
-            </div>
+            <span className="font-extrabold text-white text-base sm:text-lg tracking-tight">
+              Fav Lector
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Center Navigation Pills */}
+          <nav className="hidden md:flex items-center bg-[#141720]/80 border border-white/[0.08] p-1 rounded-full shadow-inner">
+            <button
+              onClick={() => setActiveTab('main')}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${
+                activeTab === 'main'
+                  ? 'bg-white/10 text-white shadow-sm'
+                  : 'text-stone-400 hover:text-white'
+              }`}
+            >
+              მთავარი
+            </button>
+            <button
+              onClick={() => setActiveTab('rating')}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${
+                activeTab === 'rating'
+                  ? 'bg-white/10 text-white shadow-sm'
+                  : 'text-stone-400 hover:text-white'
+              }`}
+            >
+              რეიტინგი
+            </button>
+            <button
+              onClick={() => setActiveTab('stats')}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${
+                activeTab === 'stats'
+                  ? 'bg-white/10 text-white shadow-sm'
+                  : 'text-stone-400 hover:text-white'
+              }`}
+            >
+              სტატისტიკა
+            </button>
+            <button
+              onClick={() => setActiveTab('about')}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition ${
+                activeTab === 'about'
+                  ? 'bg-white/10 text-white shadow-sm'
+                  : 'text-stone-400 hover:text-white'
+              }`}
+            >
+              შესახებ
+            </button>
+          </nav>
+
+          {/* Right Controls */}
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-stone-200">
+              <Landmark className="w-3.5 h-3.5 text-[#C8A97E]" />
+              <span>BTU</span>
+              <ChevronDown className="w-3 h-3 text-stone-500" />
+            </div>
+
             <button
               onClick={handleShareLink}
-              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700/60 text-slate-200 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm"
-              title="ლინკის გაზიარება"
+              className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-stone-300 hover:text-white text-xs font-medium transition flex items-center gap-1.5"
+              title="გაზიარება"
             >
-              <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400" />
-              <span>გაზიარება</span>
+              <Share2 className="w-3.5 h-3.5 text-[#C8A97E]" />
+              <span className="hidden sm:inline">გაზიარება</span>
             </button>
+
+            <div className="w-8 h-8 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-stone-300">
+              <User className="w-4 h-4" />
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Battle Container */}
-      <main className="relative z-10 flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 py-5 sm:py-8 flex flex-col justify-center">
-        {/* Headline Section */}
-        <div className="text-center space-y-2 mb-6 sm:mb-8 px-1">
-          <div className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700/60 text-[11px] sm:text-xs font-semibold text-slate-300 shadow-inner">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span className="text-emerald-400 font-bold">LIVE BATTLE</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-slate-400 flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-indigo-400" />
-              {battle.totalVotes} სტუდენტის ხმა
-            </span>
-          </div>
+      {/* HERO SECTION */}
+      <section className="relative z-10 pt-8 sm:pt-12 pb-6 px-4 text-center max-w-4xl mx-auto">
+        <div className="inline-block tracking-widest uppercase text-[11px] font-bold text-[#C8A97E] mb-3">
+          BTU BATTLE • {stats.season}
+        </div>
 
-          <h1 className="text-xl sm:text-3xl md:text-5xl font-black tracking-tight text-white drop-shadow-sm leading-tight break-words">
-            {battle.title}
+        <div className="flex items-center justify-center gap-2 sm:gap-4 mb-3">
+          <LaurelLeft />
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight">
+            რომელია შენი ფავორიტი ლექტორი?
           </h1>
-
-          <p className="text-slate-400 text-xs sm:text-sm md:text-base max-w-lg mx-auto font-medium">
-            {battle.description || 'მიეცი ხმა შენს ფავორიტ ლექტორს! არჩევანი ანონიმურია და საბოლოო.'}
-          </p>
+          <LaurelRight />
         </div>
 
-        {/* Dual Progress Bar (Always visible or highlighted after vote) */}
-        <div className="max-w-2xl mx-auto w-full mb-8">
-          <div className="flex justify-between items-end text-xs font-bold mb-2">
-            <div className="flex items-center gap-1.5 text-indigo-400">
-              <span className="text-sm sm:text-base">{battle.lector1Percent}%</span>
-              <span className="text-slate-400 font-medium truncate max-w-[120px] sm:max-w-none">
-                {battle.lector1Name}
-              </span>
-            </div>
-            <div className="text-slate-500 font-medium text-[11px]">
-              სულ {battle.totalVotes} ხმა
-            </div>
-            <div className="flex items-center gap-1.5 text-pink-400">
-              <span className="text-slate-400 font-medium truncate max-w-[120px] sm:max-w-none">
-                {battle.lector2Name}
-              </span>
-              <span className="text-sm sm:text-base">{battle.lector2Percent}%</span>
+        <p className="text-stone-400 text-xs sm:text-sm md:text-base max-w-lg mx-auto font-normal mb-8">
+          აირჩიე ერთ-ერთი ლექტორი და გააგრძელე წყვილები.
+        </p>
+
+        {/* 4 STATS ROW */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 max-w-2xl mx-auto">
+          <div className="flex items-center justify-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+            <Users className="w-4 h-4 text-stone-400 flex-shrink-0" />
+            <div className="text-left">
+              <div className="text-xs sm:text-sm font-bold text-white">
+                {stats.totalVotes.toLocaleString()}
+              </div>
+              <div className="text-[10px] text-stone-500 font-medium">სულ ხმები</div>
             </div>
           </div>
 
-          <div className="h-3 sm:h-4 w-full bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-800 flex shadow-inner">
-            <div
-              className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-l-full transition-all duration-700 ease-out"
-              style={{ width: `${battle.lector1Percent}%` }}
-            />
-            <div
-              className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-r-full transition-all duration-700 ease-out"
-              style={{ width: `${battle.lector2Percent}%` }}
-            />
+          <div className="flex items-center justify-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+            <Swords className="w-4 h-4 text-stone-400 flex-shrink-0" />
+            <div className="text-left">
+              <div className="text-xs sm:text-sm font-bold text-white">
+                {stats.totalBattles.toLocaleString()}
+              </div>
+              <div className="text-[10px] text-stone-500 font-medium">ბრძოლა</div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+            <GraduationCap className="w-4 h-4 text-stone-400 flex-shrink-0" />
+            <div className="text-left">
+              <div className="text-xs sm:text-sm font-bold text-white">
+                {stats.totalLectors}
+              </div>
+              <div className="text-[10px] text-stone-500 font-medium">ლექტორი</div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-2.5 px-3 py-2 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+            <Landmark className="w-4 h-4 text-stone-400 flex-shrink-0" />
+            <div className="text-left">
+              <div className="text-xs sm:text-sm font-bold text-white">
+                {stats.season}
+              </div>
+              <div className="text-[10px] text-stone-500 font-medium">{stats.university}</div>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Versus Battle Arena (Two Head-to-Head Cards) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 lg:gap-8 items-stretch relative">
-          {/* Middle VS Badge for Desktop */}
-          <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-slate-900 border-2 border-slate-700/80 shadow-2xl shadow-black items-center justify-center font-black text-white text-sm lg:text-base tracking-widest pointer-events-none">
-            <span className="bg-gradient-to-tr from-rose-400 to-indigo-400 bg-clip-text text-transparent">
-              VS
-            </span>
-          </div>
-
-          {/* LECTURER 1 CARD */}
-          <div
-            className={`group relative rounded-2xl sm:rounded-3xl bg-slate-900/80 border p-4 sm:p-5 md:p-6 flex flex-col justify-between transition-all duration-300 shadow-xl backdrop-blur-md overflow-hidden ${
-              userVote === 1
-                ? 'border-indigo-500 ring-2 sm:ring-4 ring-indigo-500/20 bg-indigo-950/20'
-                : 'border-slate-800 hover:border-indigo-500/50'
-            }`}
-          >
-            {/* Top Badge */}
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <span className="text-[11px] sm:text-xs font-extrabold uppercase px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                ვარიანტი A
-              </span>
-              {isLector1Leader && battle.totalVotes > 0 && (
-                <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
-                  <Crown className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  ლიდერი
-                </span>
-              )}
-            </div>
-
-            {/* Lecturer 1 Photo (Guaranteed Aspect Ratio, No Distortion) */}
-            <div className="relative w-full aspect-[4/5] sm:aspect-square max-h-[300px] sm:max-h-[360px] md:max-h-[380px] rounded-xl sm:rounded-2xl overflow-hidden mb-3.5 sm:mb-4 bg-slate-950 border border-slate-800 shadow-inner group-hover:scale-[1.01] transition-transform duration-300">
-              <img
-                src={battle.lector1Photo}
-                alt={battle.lector1Name}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover object-center"
-                loading="eager"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
-
-              {/* Overlay Name & Subject */}
-              <div className="absolute bottom-2.5 left-2.5 right-2.5 sm:bottom-3 sm:left-3 sm:right-3">
-                <h3 className="text-base sm:text-lg md:text-xl font-black text-white leading-tight drop-shadow-md">
-                  {battle.lector1Name}
-                </h3>
-                <p className="text-[11px] sm:text-xs md:text-sm font-semibold text-indigo-300 drop-shadow-sm">
-                  {battle.lector1Subject}
-                </p>
-              </div>
-
-              {/* Checkmark if voted */}
-              {userVote === 1 && (
-                <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 bg-indigo-600 text-white p-1 sm:p-1.5 rounded-full shadow-lg flex items-center gap-1 px-2 sm:px-2.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="text-[10px] sm:text-[11px] font-bold">შენი არჩევანი</span>
-                </div>
-              )}
-            </div>
-
-            {/* Stats & Vote Button */}
-            <div className="space-y-2.5 sm:space-y-3 pt-1">
-              <div className="flex items-center justify-between px-1">
-                <div className="text-[11px] sm:text-xs text-slate-400 font-medium">
-                  ხმების რაოდენობა:
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-300">
-                    {battle.lector1Votes} ხმა
-                  </span>
-                  <span className="text-sm sm:text-base font-black text-indigo-400">
-                    {battle.lector1Percent}%
-                  </span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => handleVote(1)}
-                disabled={voting || hasVoted}
-                className={`w-full py-3 sm:py-3.5 px-4 sm:px-5 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-98 shadow-lg ${
-                  userVote === 1
-                    ? 'bg-indigo-600 text-white shadow-indigo-600/30'
-                    : hasVoted
-                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
-                    : 'bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-indigo-600/30 hover:shadow-indigo-500/40 cursor-pointer'
-                }`}
-              >
-                {userVote === 1 ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>მიცემული გაქვს ხმა</span>
-                  </>
-                ) : hasVoted ? (
-                  <span>ხმა უკვე დაფიქსირებულია</span>
-                ) : (
-                  <>
-                    <Flame className="w-4 h-4 text-indigo-200" />
-                    <span>ხმის მიცემა ({battle.lector1Name.split(' ')[0]})</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Middle VS Badge for Mobile */}
-          <div className="flex md:hidden items-center justify-center -my-3 z-10">
-            <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-700 shadow-xl flex items-center justify-center font-black text-xs tracking-widest">
-              <span className="bg-gradient-to-tr from-rose-400 to-indigo-400 bg-clip-text text-transparent">
+      {/* MAIN TWO-COLUMN CONTAINER */}
+      <main className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-8 flex-1">
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          {/* LEFT: VERSUS ARENA */}
+          <div className="w-full lg:flex-1 space-y-6">
+            {/* Cards Container with Center VS Badge */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 relative">
+              {/* Center VS Badge */}
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#D8BE93] text-stone-900 font-black italic shadow-2xl flex items-center justify-center tracking-wider text-xs sm:text-sm pointer-events-none ring-4 ring-[#0B0D12]">
                 VS
-              </span>
-            </div>
-          </div>
-
-          {/* LECTURER 2 CARD */}
-          <div
-            className={`group relative rounded-2xl sm:rounded-3xl bg-slate-900/80 border p-4 sm:p-5 md:p-6 flex flex-col justify-between transition-all duration-300 shadow-xl backdrop-blur-md overflow-hidden ${
-              userVote === 2
-                ? 'border-pink-500 ring-2 sm:ring-4 ring-pink-500/20 bg-pink-950/20'
-                : 'border-slate-800 hover:border-pink-500/50'
-            }`}
-          >
-            {/* Top Badge */}
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <span className="text-[11px] sm:text-xs font-extrabold uppercase px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/20">
-                ვარიანტი B
-              </span>
-              {isLector2Leader && battle.totalVotes > 0 && (
-                <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
-                  <Crown className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  ლიდერი
-                </span>
-              )}
-            </div>
-
-            {/* Lecturer 2 Photo (Guaranteed Aspect Ratio, No Distortion) */}
-            <div className="relative w-full aspect-[4/5] sm:aspect-square max-h-[300px] sm:max-h-[360px] md:max-h-[380px] rounded-xl sm:rounded-2xl overflow-hidden mb-3.5 sm:mb-4 bg-slate-950 border border-slate-800 shadow-inner group-hover:scale-[1.01] transition-transform duration-300">
-              <img
-                src={battle.lector2Photo}
-                alt={battle.lector2Name}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover object-center"
-                loading="eager"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
-
-              {/* Overlay Name & Subject */}
-              <div className="absolute bottom-2.5 left-2.5 right-2.5 sm:bottom-3 sm:left-3 sm:right-3">
-                <h3 className="text-base sm:text-lg md:text-xl font-black text-white leading-tight drop-shadow-md">
-                  {battle.lector2Name}
-                </h3>
-                <p className="text-[11px] sm:text-xs md:text-sm font-semibold text-pink-300 drop-shadow-sm">
-                  {battle.lector2Subject}
-                </p>
               </div>
 
-              {/* Checkmark if voted */}
-              {userVote === 2 && (
-                <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 bg-pink-600 text-white p-1 sm:p-1.5 rounded-full shadow-lg flex items-center gap-1 px-2 sm:px-2.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="text-[10px] sm:text-[11px] font-bold">შენი არჩევანი</span>
+              {/* LECTURER 1 CARD */}
+              <div className="space-y-3">
+                <div
+                  onClick={() => handleVote(1)}
+                  className={`relative rounded-3xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] bg-[#141720] border transition-all duration-300 shadow-2xl group cursor-pointer ${
+                    currentBattle?.userVote === 1
+                      ? 'border-[#D8BE93] ring-2 ring-[#D8BE93]/40'
+                      : 'border-white/10 hover:border-white/30'
+                  }`}
+                >
+                  <img
+                    src={currentBattle?.lector1Photo}
+                    alt={currentBattle?.lector1Name}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-102"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent" />
+
+                  {/* Name & Subject Overlay */}
+                  <div className="absolute bottom-5 left-5 right-5">
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-md">
+                      {currentBattle?.lector1Name}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-stone-300 font-medium mt-1">
+                      {currentBattle?.lector1Subject}
+                    </p>
+                  </div>
+
+                  {currentBattle?.userVote === 1 && (
+                    <div className="absolute top-4 right-4 bg-[#D8BE93] text-stone-950 px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 shadow-lg">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>შენი არჩევანი</span>
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* Vote Button 1 */}
+                <button
+                  onClick={() => handleVote(1)}
+                  disabled={voting || currentBattle?.hasVoted}
+                  className={`w-full py-3.5 px-5 rounded-full font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-98 shadow-md cursor-pointer ${
+                    currentBattle?.userVote === 1
+                      ? 'bg-[#D8BE93] text-stone-900 shadow-[#D8BE93]/20'
+                      : currentBattle?.hasVoted
+                      ? 'bg-white/5 border border-white/10 text-stone-500 cursor-not-allowed'
+                      : 'bg-[#151821] hover:bg-[#1E2230] border border-white/15 text-white'
+                  }`}
+                >
+                  <Heart
+                    className={`w-4 h-4 ${
+                      currentBattle?.userVote === 1 ? 'fill-stone-900 text-stone-900' : 'text-stone-300'
+                    }`}
+                  />
+                  <span>
+                    {currentBattle?.userVote === 1
+                      ? 'არჩეულია'
+                      : currentBattle?.hasVoted
+                      ? 'ხმა მიცემულია'
+                      : 'აირჩიე ეს ლექტორი'}
+                  </span>
+                </button>
+              </div>
+
+              {/* LECTURER 2 CARD */}
+              <div className="space-y-3">
+                <div
+                  onClick={() => handleVote(2)}
+                  className={`relative rounded-3xl overflow-hidden aspect-[4/5] sm:aspect-[3/4] bg-[#141720] border transition-all duration-300 shadow-2xl group cursor-pointer ${
+                    currentBattle?.userVote === 2
+                      ? 'border-[#D8BE93] ring-2 ring-[#D8BE93]/40'
+                      : 'border-white/10 hover:border-white/30'
+                  }`}
+                >
+                  <img
+                    src={currentBattle?.lector2Photo}
+                    alt={currentBattle?.lector2Name}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-102"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent" />
+
+                  {/* Name & Subject Overlay */}
+                  <div className="absolute bottom-5 left-5 right-5">
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white leading-tight drop-shadow-md">
+                      {currentBattle?.lector2Name}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-stone-300 font-medium mt-1">
+                      {currentBattle?.lector2Subject}
+                    </p>
+                  </div>
+
+                  {currentBattle?.userVote === 2 && (
+                    <div className="absolute top-4 right-4 bg-[#D8BE93] text-stone-950 px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 shadow-lg">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>შენი არჩევანი</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Vote Button 2 */}
+                <button
+                  onClick={() => handleVote(2)}
+                  disabled={voting || currentBattle?.hasVoted}
+                  className={`w-full py-3.5 px-5 rounded-full font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-98 shadow-md cursor-pointer ${
+                    currentBattle?.userVote === 2
+                      ? 'bg-[#D8BE93] text-stone-900 shadow-[#D8BE93]/20'
+                      : currentBattle?.hasVoted
+                      ? 'bg-white/5 border border-white/10 text-stone-500 cursor-not-allowed'
+                      : 'bg-[#D8BE93] hover:bg-[#C8A97E] text-stone-900 shadow-[#D8BE93]/20'
+                  }`}
+                >
+                  <Heart
+                    className={`w-4 h-4 ${
+                      currentBattle?.userVote === 2 ? 'fill-stone-900 text-stone-900' : 'fill-stone-900'
+                    }`}
+                  />
+                  <span>
+                    {currentBattle?.userVote === 2
+                      ? 'არჩეულია'
+                      : currentBattle?.hasVoted
+                      ? 'ხმა მიცემულია'
+                      : 'აირჩიე ეს ლექტორი'}
+                  </span>
+                </button>
+              </div>
             </div>
 
-            {/* Stats & Vote Button */}
-            <div className="space-y-2.5 sm:space-y-3 pt-1">
-              <div className="flex items-center justify-between px-1">
-                <div className="text-[11px] sm:text-xs text-slate-400 font-medium">
-                  ხმების რაოდენობა:
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-300">
-                    {battle.lector2Votes} ხმა
-                  </span>
-                  <span className="text-sm sm:text-base font-black text-pink-400">
-                    {battle.lector2Percent}%
-                  </span>
-                </div>
+            {/* Pagination & Pair Controls */}
+            <div className="flex items-center justify-between pt-2">
+              <button
+                onClick={handleRandomPair}
+                className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-stone-300 transition flex items-center gap-2 active:scale-95 cursor-pointer"
+              >
+                <Shuffle className="w-3.5 h-3.5 text-[#C8A97E]" />
+                <span>შემთხვევითი წყვილი</span>
+              </button>
+
+              <div className="text-xs font-bold text-stone-400">
+                {currentIndex + 1} / {Math.max(battles.length, 10)}
               </div>
 
               <button
-                onClick={() => handleVote(2)}
-                disabled={voting || hasVoted}
-                className={`w-full py-3 sm:py-3.5 px-4 sm:px-5 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-98 shadow-lg ${
-                  userVote === 2
-                    ? 'bg-pink-600 text-white shadow-pink-600/30'
-                    : hasVoted
-                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
-                    : 'bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-500 hover:to-rose-400 text-white shadow-pink-600/30 hover:shadow-pink-500/40 cursor-pointer'
-                }`}
+                onClick={handleNextPair}
+                className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-stone-300 transition flex items-center gap-2 active:scale-95 cursor-pointer"
               >
-                {userVote === 2 ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>მიცემული გაქვს ხმა</span>
-                  </>
-                ) : hasVoted ? (
-                  <span>ხმა უკვე დაფიქსირებულია</span>
-                ) : (
-                  <>
-                    <Flame className="w-4 h-4 text-pink-200" />
-                    <span>ხმის მიცემა ({battle.lector2Name.split(' ')[0]})</span>
-                  </>
-                )}
+                <span>შემდეგი წყვილი</span>
+                <span>→</span>
               </button>
             </div>
           </div>
+
+          {/* RIGHT: LEADERBOARD SIDEBAR */}
+          <aside className="w-full lg:w-[350px] xl:w-[380px] bg-[#13161F]/90 border border-white/[0.08] rounded-3xl p-6 shadow-2xl backdrop-blur-md space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-[#D8BE93]">
+                <Trophy className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white leading-tight">
+                  ტოპ ლექტორები
+                </h2>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  ყველაზე ხშირად არჩეულები
+                </p>
+              </div>
+            </div>
+
+            {/* Ranked List */}
+            <div className="space-y-4">
+              {leaderboard.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 p-2 rounded-2xl hover:bg-white/[0.03] transition"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Rank Circle */}
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0 ${
+                        item.rank === 1
+                          ? 'bg-[#D8BE93] text-stone-950'
+                          : item.rank === 2
+                          ? 'bg-stone-300 text-stone-900'
+                          : item.rank === 3
+                          ? 'bg-[#B8865A] text-white'
+                          : 'bg-white/10 text-stone-400'
+                      }`}
+                    >
+                      {item.rank}
+                    </div>
+
+                    {/* Avatar */}
+                    <img
+                      src={item.avatar}
+                      alt={item.name}
+                      referrerPolicy="no-referrer"
+                      className="w-10 h-10 rounded-full object-cover border border-white/10 flex-shrink-0"
+                    />
+
+                    {/* Name */}
+                    <div className="truncate">
+                      <div className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate">
+                        <span className="truncate">{item.name}</span>
+                        {item.isCrown && (
+                          <Crown className="w-3.5 h-3.5 text-[#D8BE93] fill-[#D8BE93] flex-shrink-0" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Percentage */}
+                  <div className="text-xs sm:text-sm font-bold text-stone-300 flex-shrink-0">
+                    {item.percent}%
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Full Rating Link */}
+            <button
+              onClick={() => showToast('სრული რეიტინგი ხელმისაწვდომი იქნება სეზონის ბოლოს!', 'info')}
+              className="w-full py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-stone-300 hover:text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 active:scale-98 cursor-pointer"
+            >
+              <span>სრული რეიტინგი</span>
+              <span>→</span>
+            </button>
+          </aside>
         </div>
 
-        {/* Live Realtime Note */}
-        <div className="mt-8 pt-6 border-t border-slate-800/80 flex items-center justify-center">
-          <div className="flex items-center gap-2 text-xs text-slate-400 text-center">
-            <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            <span>
-              ხმები განახლდება რეალურ დროში. გვერდის გადატვირთვა არაა საჭირო.
-            </span>
+        {/* BOTTOM PROGRESS BAR */}
+        {currentBattle && (
+          <div className="mt-8 bg-[#13161F]/90 border border-white/[0.08] rounded-2xl sm:rounded-full p-3 sm:px-6 sm:py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
+            <div className="flex items-center gap-2 text-xs font-bold text-stone-300 flex-shrink-0">
+              <BarChart3 className="w-4 h-4 text-[#D8BE93]" />
+              <span>ბრძოლის პროგრესი</span>
+            </div>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto sm:flex-1 sm:max-w-xl mx-auto">
+              <div className="text-xs font-bold text-[#D8BE93] whitespace-nowrap">
+                {currentBattle.lector1Percent}%
+                <span className="hidden md:inline ml-1 text-stone-400 font-normal">
+                  {currentBattle.lector1Name}
+                </span>
+              </div>
+
+              {/* Dual Color Progress Bar */}
+              <div className="flex-1 h-2.5 sm:h-3 bg-[#242A38] rounded-full overflow-hidden flex">
+                <div
+                  className="h-full bg-[#D8BE93] transition-all duration-700 ease-out"
+                  style={{ width: `${currentBattle.lector1Percent}%` }}
+                />
+                <div
+                  className="h-full bg-[#353D50] transition-all duration-700 ease-out"
+                  style={{ width: `${currentBattle.lector2Percent}%` }}
+                />
+              </div>
+
+              <div className="text-xs font-bold text-stone-300 whitespace-nowrap">
+                <span className="hidden md:inline mr-1 text-stone-400 font-normal">
+                  {currentBattle.lector2Name}
+                </span>
+                {currentBattle.lector2Percent}%
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-slate-900 bg-slate-950/80 backdrop-blur-md py-6 text-center text-xs text-slate-500">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© 2026 Fav Lector • BTU სტუდენტური პლატფორმა</p>
-          <p className="text-slate-500 text-[11px]">
-            ყველა ხმა ანონიმურია და დაცულია
-          </p>
+      {/* FOOTER */}
+      <footer className="border-t border-white/[0.06] bg-[#0A0C10] py-6 text-center text-xs text-stone-500 mt-8">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>© 2026 Fav Lector • BTU minimal premium platform</p>
+          <div className="flex items-center gap-2 text-stone-500">
+            <Sparkles className="w-3.5 h-3.5 text-[#C8A97E]" />
+            <span>ხმები განახლდება რეალურ დროში</span>
+          </div>
         </div>
       </footer>
     </div>

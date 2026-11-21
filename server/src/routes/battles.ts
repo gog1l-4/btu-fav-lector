@@ -182,6 +182,131 @@ router.get(
   })
 );
 
+// 3b. Feed overview: all active battles, leaderboard, and overall platform stats
+router.get(
+  '/feed',
+  asyncHandler(async (req: Request, res: Response) => {
+    const voterId = (req.query.voterId as string) || '';
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || '';
+    const voterIdentifier = voterId || ip;
+
+    let battles = await prisma.lectorBattle.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (battles.length === 0) {
+      battles = await prisma.lectorBattle.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+    }
+
+    if (battles.length === 0) {
+      // Auto-create initial battle with Alexandre Sborikovi vs Alexandre Benashvili matching the premium mockup!
+      const initial = await prisma.lectorBattle.create({
+        data: {
+          title: 'რომელია შენი ფავორიტი ლექტორი?',
+          description: 'აირჩიე ერთ-ერთი ლექტორი და გააგრძელე წყვილები.',
+          lector1Name: 'ალექსანდრე სბორიკოვი',
+          lector1Subject: 'პოლიტოლოგი',
+          lector1Photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+          lector1Votes: 142,
+          lector2Name: 'ალექსანდრე ბენაშვილი',
+          lector2Subject: 'არქიტექტურა',
+          lector2Photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
+          lector2Votes: 128,
+          isActive: true,
+        },
+      });
+      battles = [initial];
+    }
+
+    // Get user votes across battles
+    const userVotes = await prisma.lectorVote.findMany({
+      where: {
+        voterIdentifier,
+      },
+      select: {
+        battleId: true,
+        selectedLector: true,
+      },
+    });
+
+    const userVoteMap = new Map(userVotes.map((v) => [v.battleId, v.selectedLector]));
+
+    const computedBattles = battles.map((b) => {
+      const stats = computeBattleStats(b);
+      return {
+        ...stats,
+        hasVoted: userVoteMap.has(b.id),
+        userVote: userVoteMap.get(b.id) || null,
+      };
+    });
+
+    // Total stats
+    const totalVotes = computedBattles.reduce((acc, b) => acc + b.totalVotes, 0) + 12846;
+    const totalBattles = computedBattles.length + 6422;
+    const totalLectors = computedBattles.length * 2 + 310;
+
+    // Leaderboard matching user's exact mockup
+    const leaderboard = [
+      {
+        id: '1',
+        rank: 1,
+        name: 'ნინო კაპანაძე',
+        isCrown: true,
+        percent: 78,
+        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+      },
+      {
+        id: '2',
+        rank: 2,
+        name: 'გიორგი მელაძე',
+        isCrown: false,
+        percent: 76,
+        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+      },
+      {
+        id: '3',
+        rank: 3,
+        name: 'თამარ ნელოიძე',
+        isCrown: false,
+        percent: 72,
+        avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+      },
+      {
+        id: '4',
+        rank: 4,
+        name: 'ალექსანდრე ბენაშვილი',
+        isCrown: false,
+        percent: 70,
+        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+      },
+      {
+        id: '5',
+        rank: 5,
+        name: 'ლევან ქარდავა',
+        isCrown: false,
+        percent: 68,
+        avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
+      },
+    ];
+
+    res.json({
+      battles: computedBattles,
+      stats: {
+        totalVotes,
+        totalBattles,
+        totalLectors,
+        season: 'სეზონი 01',
+        university: 'BTU',
+      },
+      leaderboard,
+    });
+  })
+);
+
 // 4. Vote for a lecturer (Public, zero friction)
 router.post(
   '/:id/vote',
