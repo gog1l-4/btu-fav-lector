@@ -93,8 +93,31 @@ router.post(
       url = 'https://' + url;
     }
 
+    const lower = url.toLowerCase();
+
+    // Check if matching Aleksandre Sborischikovi or Benashvili from database
+    if (lower.includes('aleqs') || lower.includes('sbor') || lower.includes('benash')) {
+      const match = await prisma.lectorBattle.findFirst({
+        where: {
+          OR: [
+            { lector1Name: { contains: 'სბორ' } },
+            { lector2Name: { contains: 'ბენაშვილ' } },
+          ],
+        },
+      });
+
+      if (match) {
+        if ((lower.includes('aleqs') || lower.includes('sbor')) && match.lector1Photo) {
+          return res.json({ dataUrl: match.lector1Photo, finalUrl: url });
+        }
+        if (lower.includes('benash') && match.lector2Photo) {
+          return res.json({ dataUrl: match.lector2Photo, finalUrl: url });
+        }
+      }
+    }
+
     // Auto-complete truncated BTU lecturer URL if user pasted partial link
-    if (url.includes('btu.edu.ge/wp-content/uploads/2022/11/aleqsandre') && !url.endsWith('.jpg')) {
+    if (lower.includes('btu.edu.ge') && (lower.includes('aleqs') || lower.includes('sbor'))) {
       url = 'https://btu.edu.ge/wp-content/uploads/2022/11/aleqsandre-sborshchikovi-1.jpg';
     }
 
@@ -108,6 +131,12 @@ router.post(
       });
 
       if (!response.ok) {
+        if (response.status === 403) {
+          return res.status(400).json({
+            message:
+              'მოცემული საიტი (Cloudflare) ბლოკავს პირდაპირ ბმულს (403). გთხოვთ გამოიყენოთ „კომპიუტერიდან ატვირთვა“ ან დააკოპირეთ (Copy Image) და დააჭირეთ Ctrl+V-ს!',
+          });
+        }
         return res.status(400).json({ message: `სურათი ვერ ჩამოიტვირთა (სტატუსი: ${response.status})` });
       }
 

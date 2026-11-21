@@ -171,7 +171,8 @@ export function AdminBattlePage() {
     }
 
     // Auto-complete truncated BTU lecturer URL if user pasted partial link
-    if (cleanUrl.includes('btu.edu.ge/wp-content/uploads/2022/11/aleqsandre') && !cleanUrl.endsWith('.jpg')) {
+    const lower = cleanUrl.toLowerCase();
+    if (lower.includes('btu.edu.ge') && (lower.includes('aleqs') || lower.includes('sbor'))) {
       cleanUrl = 'https://btu.edu.ge/wp-content/uploads/2022/11/aleqsandre-sborshchikovi-1.jpg';
     }
 
@@ -450,6 +451,29 @@ export function AdminBattlePage() {
             </div>
           </div>
 
+          {/* Quick Preset Bar */}
+          <div className="mb-6 p-3.5 rounded-2xl bg-indigo-950/40 border border-indigo-500/20 flex flex-wrap items-center justify-between gap-2.5">
+            <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+              <span>⚡</span> სწრაფი შევსება:
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setTitle('🔥 BTU: ლექტორთა შერკინება');
+                setDescription('რომელია შენი ფავორიტი ლექტორი?');
+                setLector1Name('ალექსანდრე სბორიჩიკოვი');
+                setLector1Subject('პოლიტოლოგი');
+                fetchImageAsDataUrl('https://btu.edu.ge/wp-content/uploads/2022/11/aleqsandre-sborshchikovi-1.jpg', 1);
+                setLector2Name('ალექსანდრე ბენაშვილი');
+                setLector2Subject('არქიტექტურა');
+                fetchImageAsDataUrl('https://files.ug.edu.ge/online.ug.edu.ge/picture.php?token=ad02c8625d7e654f1595ba40d8c17a26&personID=82', 2);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/30 text-white text-xs font-bold transition cursor-pointer"
+            >
+              სბორიჩიკოვი VS ბენაშვილი (მზა ფოტოებით)
+            </button>
+          </div>
+
           <form onSubmit={handleCreateBattle} className="space-y-6">
             {/* Title & Description */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -525,8 +549,20 @@ export function AdminBattlePage() {
                   </label>
 
                   <div className="flex gap-4 items-start">
-                    {/* Exact Aspect-Ratio Preview Box */}
-                    <div className="w-24 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-slate-900 border border-slate-800 relative flex items-center justify-center">
+                    {/* Exact Aspect-Ratio Preview Box with Drag & Drop */}
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file && file.type.startsWith('image/')) {
+                          handleFileUpload(file, 1);
+                        }
+                      }}
+                      className="w-24 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-slate-900 border-2 border-dashed border-slate-700 hover:border-indigo-500 transition relative flex items-center justify-center cursor-pointer"
+                      onClick={() => !lector1Photo && fileInputRef1.current?.click()}
+                      title="დააჭირეთ ან ჩააგდეთ ფოტო აქ"
+                    >
                       {lector1Photo && !img1Error ? (
                         <img
                           src={lector1Photo.startsWith('http') ? `/api/battles/image-proxy?url=${encodeURIComponent(lector1Photo)}` : lector1Photo}
@@ -536,9 +572,11 @@ export function AdminBattlePage() {
                           className="w-full h-full object-cover object-center"
                         />
                       ) : (
-                        <div className="flex flex-col items-center justify-center p-2 text-center">
-                          <ImageIcon className="w-6 h-6 text-slate-700 mb-1" />
-                          {img1Error && <span className="text-[9px] text-red-400 font-medium">ვერ ჩაიტვირთა</span>}
+                        <div className="flex flex-col items-center justify-center p-2 text-center pointer-events-none">
+                          <ImageIcon className="w-6 h-6 text-slate-600 mb-1" />
+                          <span className="text-[9px] text-slate-400">
+                            {img1Error ? 'ვერ ჩაიტვირთა' : 'ჩააგდეთ ფოტო'}
+                          </span>
                         </div>
                       )}
                       {uploading1 && (
@@ -567,7 +605,7 @@ export function AdminBattlePage() {
                         className="w-full py-2 px-3 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
                       >
                         <Upload className="w-3.5 h-3.5" />
-                        <span>{uploading1 ? 'იტვირთება...' : 'კომპიუტერიდან ატვირთვა'}</span>
+                        <span>{uploading1 ? 'იტვირთება...' : '📁 კომპიუტერიდან ატვირთვა'}</span>
                       </button>
 
                       <div className="flex gap-1.5">
@@ -584,13 +622,27 @@ export function AdminBattlePage() {
                             }
                           }}
                           onPaste={(e) => {
+                            // Check for direct pasted image file (e.g. Snipping Tool or browser Copy Image)
+                            const items = e.clipboardData.items;
+                            if (items) {
+                              for (let i = 0; i < items.length; i++) {
+                                if (items[i].type.startsWith('image/')) {
+                                  const file = items[i].getAsFile();
+                                  if (file) {
+                                    e.preventDefault();
+                                    handleFileUpload(file, 1);
+                                    return;
+                                  }
+                                }
+                              }
+                            }
                             const pasted = e.clipboardData.getData('text');
                             if (pasted) {
                               setImg1Error(false);
                               setTimeout(() => fetchImageAsDataUrl(pasted, 1), 50);
                             }
                           }}
-                          placeholder="ან ჩასვით სურათის პირდაპირი URL"
+                          placeholder="ან ჩასვით სურათის ბმული / Ctrl+V"
                           className="flex-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs focus:outline-none focus:border-indigo-500 transition"
                         />
                         {lector1Photo && (
@@ -622,7 +674,7 @@ export function AdminBattlePage() {
                     </div>
                   </div>
                   <p className="text-[11px] text-slate-500">
-                    💡 ფოტო ავტომატურად მორგებულია (Cover). არ გაიწელება და არ დამახინჯდება.
+                    💡 შეგიძლიათ პირდაპირ დააჭიროთ <span className="text-indigo-400 font-bold">Ctrl+V</span>-ს სურათის ჩასასმელად, ჩააგდოთ (Drag & Drop), ან ატვირთოთ კომპიუტერიდან.
                   </p>
                 </div>
               </div>
@@ -670,8 +722,20 @@ export function AdminBattlePage() {
                   </label>
 
                   <div className="flex gap-4 items-start">
-                    {/* Exact Aspect-Ratio Preview Box */}
-                    <div className="w-24 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-slate-900 border border-slate-800 relative flex items-center justify-center">
+                    {/* Exact Aspect-Ratio Preview Box with Drag & Drop */}
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file && file.type.startsWith('image/')) {
+                          handleFileUpload(file, 2);
+                        }
+                      }}
+                      className="w-24 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-slate-900 border-2 border-dashed border-slate-700 hover:border-pink-500 transition relative flex items-center justify-center cursor-pointer"
+                      onClick={() => !lector2Photo && fileInputRef2.current?.click()}
+                      title="დააჭირეთ ან ჩააგდეთ ფოტო აქ"
+                    >
                       {lector2Photo && !img2Error ? (
                         <img
                           src={lector2Photo.startsWith('http') ? `/api/battles/image-proxy?url=${encodeURIComponent(lector2Photo)}` : lector2Photo}
@@ -681,9 +745,11 @@ export function AdminBattlePage() {
                           className="w-full h-full object-cover object-center"
                         />
                       ) : (
-                        <div className="flex flex-col items-center justify-center p-2 text-center">
-                          <ImageIcon className="w-6 h-6 text-slate-700 mb-1" />
-                          {img2Error && <span className="text-[9px] text-red-400 font-medium">ვერ ჩაიტვირთა</span>}
+                        <div className="flex flex-col items-center justify-center p-2 text-center pointer-events-none">
+                          <ImageIcon className="w-6 h-6 text-slate-600 mb-1" />
+                          <span className="text-[9px] text-slate-400">
+                            {img2Error ? 'ვერ ჩაიტვირთა' : 'ჩააგდეთ ფოტო'}
+                          </span>
                         </div>
                       )}
                       {uploading2 && (
@@ -712,7 +778,7 @@ export function AdminBattlePage() {
                         className="w-full py-2 px-3 rounded-xl bg-pink-600/20 hover:bg-pink-600/30 border border-pink-500/30 text-pink-300 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
                       >
                         <Upload className="w-3.5 h-3.5" />
-                        <span>{uploading2 ? 'იტვირთება...' : 'კომპიუტერიდან ატვირთვა'}</span>
+                        <span>{uploading2 ? 'იტვირთება...' : '📁 კომპიუტერიდან ატვირთვა'}</span>
                       </button>
 
                       <div className="flex gap-1.5">
@@ -729,13 +795,27 @@ export function AdminBattlePage() {
                             }
                           }}
                           onPaste={(e) => {
+                            // Check for direct pasted image file (e.g. Snipping Tool or browser Copy Image)
+                            const items = e.clipboardData.items;
+                            if (items) {
+                              for (let i = 0; i < items.length; i++) {
+                                if (items[i].type.startsWith('image/')) {
+                                  const file = items[i].getAsFile();
+                                  if (file) {
+                                    e.preventDefault();
+                                    handleFileUpload(file, 2);
+                                    return;
+                                  }
+                                }
+                              }
+                            }
                             const pasted = e.clipboardData.getData('text');
                             if (pasted) {
                               setImg2Error(false);
                               setTimeout(() => fetchImageAsDataUrl(pasted, 2), 50);
                             }
                           }}
-                          placeholder="ან ჩასვით სურათის პირდაპირი URL"
+                          placeholder="ან ჩასვით სურათის ბმული / Ctrl+V"
                           className="flex-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs focus:outline-none focus:border-pink-500 transition"
                         />
                         {lector2Photo && (
@@ -767,7 +847,7 @@ export function AdminBattlePage() {
                     </div>
                   </div>
                   <p className="text-[11px] text-slate-500">
-                    💡 ფოტო ავტომატურად მორგებულია (Cover). არ გაიწელება და არ დამახინჯდება.
+                    💡 შეგიძლიათ პირდაპირ დააჭიროთ <span className="text-pink-400 font-bold">Ctrl+V</span>-ს სურათის ჩასასმელად, ჩააგდოთ (Drag & Drop), ან ატვირთოთ კომპიუტერიდან.
                   </p>
                 </div>
               </div>
