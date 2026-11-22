@@ -288,7 +288,124 @@ export async function generateInstagramStory(battle: LectorBattle): Promise<stri
   return canvas.toDataURL('image/png');
 }
 
-export function downloadDataUrl(dataUrl: string, filename = 'btu-lector-battle.png') {
+export async function generateStudentStoryImage(profile: {
+  name: string;
+  photo: string;
+  instagram?: string | null;
+  rank?: number | null;
+  winPercent: number;
+}): Promise<string> {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1920;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas context not supported');
+
+  // Obsidian luxury background
+  const bg = ctx.createLinearGradient(0, 0, 1080, 1920);
+  bg.addColorStop(0, '#0E1118');
+  bg.addColorStop(0.5, '#0B0D12');
+  bg.addColorStop(1, '#12151E');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 1080, 1920);
+
+  // Subtle gold radial glow
+  const glow = ctx.createRadialGradient(540, 260, 40, 540, 260, 620);
+  glow.addColorStop(0, 'rgba(216, 190, 147, 0.22)');
+  glow.addColorStop(1, 'rgba(216, 190, 147, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, 1080, 1000);
+
+  // Top badge
+  ctx.fillStyle = 'rgba(216, 190, 147, 0.12)';
+  roundRect(ctx, 290, 110, 500, 74, 37, true, false);
+  ctx.strokeStyle = 'rgba(216, 190, 147, 0.45)';
+  ctx.lineWidth = 2;
+  roundRect(ctx, 290, 110, 500, 74, 37, false, true);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#E8D3AD';
+  ctx.font = '800 30px DachiTheLynx, system-ui, sans-serif';
+  ctx.fillText('SPACEUNI • BTU STUDENTS', 540, 148);
+
+  // Headline
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '900 58px DachiTheLynx, system-ui, sans-serif';
+  ctx.fillText('მომეცი ხმა spaceuni-ზე!', 540, 268);
+
+  // Portrait card frame
+  const cardX = 140;
+  const cardY = 360;
+  const cardW = 800;
+  const cardH = 1040;
+
+  ctx.fillStyle = '#141720';
+  roundRect(ctx, cardX, cardY, cardW, cardH, 46, true, false);
+
+  try {
+    const img = await loadImage(profile.photo);
+    drawRoundedImage(ctx, img, cardX, cardY, cardW, cardH, 46);
+  } catch {
+    // fallback card background already painted
+  }
+
+  // Bottom gradient overlay on portrait
+  const overlay = ctx.createLinearGradient(0, cardY + 520, 0, cardY + cardH);
+  overlay.addColorStop(0, 'rgba(0,0,0,0)');
+  overlay.addColorStop(1, 'rgba(9,11,16,0.95)');
+  ctx.save();
+  roundRect(ctx, cardX, cardY, cardW, cardH, 46, false, false);
+  ctx.clip();
+  ctx.fillStyle = overlay;
+  ctx.fillRect(cardX, cardY + 520, cardW, 520);
+  ctx.restore();
+
+  // Gold card border
+  ctx.strokeStyle = 'rgba(216, 190, 147, 0.55)';
+  ctx.lineWidth = 3;
+  roundRect(ctx, cardX, cardY, cardW, cardH, 46, false, true);
+
+  // Rank pill if ranked
+  if (profile.rank) {
+    ctx.fillStyle = '#D8BE93';
+    roundRect(ctx, cardX + 38, cardY + 38, 220, 68, 34, true, false);
+    ctx.fillStyle = '#0B0D12';
+    ctx.font = '900 32px DachiTheLynx, system-ui, sans-serif';
+    ctx.fillText(`👑 #${profile.rank} ტოპში`, cardX + 148, cardY + 73);
+  }
+
+  // Name & Instagram on card
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '900 58px DachiTheLynx, system-ui, sans-serif';
+  ctx.fillText(profile.name, 540, cardY + cardH - 135);
+
+  if (profile.instagram) {
+    ctx.fillStyle = '#E8D3AD';
+    ctx.font = '600 34px BPGNinoMedium, system-ui, sans-serif';
+    ctx.fillText(`@${profile.instagram}`, 540, cardY + cardH - 68);
+  }
+
+  // CTA box
+  ctx.fillStyle = 'rgba(216, 190, 147, 0.14)';
+  roundRect(ctx, 140, 1490, 800, 190, 36, true, false);
+  ctx.strokeStyle = 'rgba(216, 190, 147, 0.35)';
+  ctx.lineWidth = 2;
+  roundRect(ctx, 140, 1490, 800, 190, 36, false, true);
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '800 40px DachiTheLynx, system-ui, sans-serif';
+  ctx.fillText('spaceuni.online', 540, 1558);
+
+  ctx.fillStyle = '#D8BE93';
+  ctx.font = '500 30px BPGNinoMedium, system-ui, sans-serif';
+  ctx.fillText('შემოდი სტუდენტების ბრძოლაში და აირჩიე ფავორიტი ✨', 540, 1624);
+
+  return canvas.toDataURL('image/png');
+}
+
+export function downloadDataUrl(dataUrl: string, filename = 'spaceuni-battle.png') {
   const link = document.createElement('a');
   link.download = filename;
   link.href = dataUrl;

@@ -15,6 +15,7 @@ import listingsRoutes from './routes/listings.js';
 import messagesRoutes from './routes/messages.js';
 import notificationsRoutes from './routes/notifications.js';
 import offersRoutes from './routes/offers.js';
+import studentsRoutes from './routes/students.js';
 import usersRoutes from './routes/users.js';
 import { initSocket } from './socket/index.js';
 
@@ -47,6 +48,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/battles', battlesRoutes);
+app.use('/api/students', studentsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/catalog', catalogRoutes);
 app.use('/api/listings', listingsRoutes);

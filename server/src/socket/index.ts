@@ -79,3 +79,7 @@ export function emitBattleUpdate(battleId: string, payload: unknown): void {
   ioInstance?.emit(`battle:${battleId}`, payload);
   ioInstance?.emit('battle:update', payload);
 }
+
+export function emitStudentUpdate(payload: unknown): void {
+  ioInstance?.emit('students:update', payload);
+}

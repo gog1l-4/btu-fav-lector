@@ -386,3 +386,102 @@ model LectorVote {
   @@map("lector_votes")
 }
 
+enum StudentGender {
+  MALE
+  FEMALE
+}
+
+enum StudentSubmissionRelation {
+  SELF
+  FRIEND
+}
+
+enum StudentModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum StudentReportStatus {
+  OPEN
+  RESOLVED
+}
+
+model StudentProfile {
+  id               String                    @id @default(cuid())
+  name             String
+  gender           StudentGender
+  photo            String
+  instagram        String?
+  relationType     StudentSubmissionRelation @default(SELF)
+  consentConfirmed Boolean                   @default(true)
+  uploaderEmail    String
+  status           StudentModerationStatus   @default(PENDING)
+  rejectionReason  String?
+  eloRating        Int                       @default(1200)
+  wins             Int                       @default(0)
+  losses           Int                       @default(0)
+  impressions      Int                       @default(0)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  votesWon         StudentVote[]             @relation("StudentVoteWinner")
+  votesLost        StudentVote[]             @relation("StudentVoteLoser")
+  reports          StudentReport[]
+
+  @@index([status, gender, eloRating(sort: Desc)])
+  @@index([uploaderEmail])
+  @@map("student_profiles")
+}
+
+model StudentVote {
+  id              String         @id @default(cuid())
+  winnerId        String
+  loserId         String
+  pairKey         String         // sorted "idA:idB" to avoid duplicate pair voting
+  voterIdentifier String         // voterId or verified email
+  voterEmail      String?
+  createdAt       DateTime       @default(now())
+
+  winner          StudentProfile @relation("StudentVoteWinner", fields: [winnerId], references: [id], onDelete: Cascade)
+  loser           StudentProfile @relation("StudentVoteLoser", fields: [loserId], references: [id], onDelete: Cascade)
+
+  @@unique([pairKey, voterIdentifier])
+  @@index([voterIdentifier])
+  @@index([voterEmail])
+  @@index([winnerId])
+  @@index([loserId])
+  @@map("student_votes")
+}
+
+model StudentOtp {
+  id        String    @id @default(cuid())
+  email     String
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email, createdAt(sort: Desc)])
+  @@map("student_otps")
+}
+
+model StudentReport {
+  id            String              @id @default(cuid())
+  profileId     String
+  reason        String
+  details       String?
+  reporterEmail String?
+  status        StudentReportStatus @default(OPEN)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  profile       StudentProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, status])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("student_reports")
+}
+
+

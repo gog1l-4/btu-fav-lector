@@ -300,3 +300,124 @@ export interface BattleFeedResponse {
   };
   leaderboard: LeaderboardItem[];
 }
+
+export type StudentGender = 'MALE' | 'FEMALE';
+export type StudentFilter = 'ALL' | 'MALE' | 'FEMALE';
+export type StudentRelationType = 'SELF' | 'FRIEND';
+export type StudentModerationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface PublicStudentProfile {
+  id: string;
+  name: string;
+  gender: StudentGender;
+  photo: string;
+  instagram: string | null;
+  eloRating: number;
+  wins: number;
+  winPercent: number;
+}
+
+export interface StudentLeaderboardItem extends PublicStudentProfile {
+  rank: number;
+  isCrown: boolean;
+}
+
+export interface StudentFeedResponse {
+  pair: {
+    gender: StudentGender;
+    student1: PublicStudentProfile;
+    student2: PublicStudentProfile;
+  } | null;
+  allVoted: boolean;
+  hasEnoughForFilter: boolean;
+  auth: {
+    isVerified: boolean;
+    email: string | null;
+    freeVotesUsed: number;
+    freeVotesLimit: number;
+    freeVotesRemaining: number | null;
+    requiresAuth: boolean;
+  };
+  stats: {
+    totalVotes: number;
+    totalStudents: number;
+    maleCount: number;
+    femaleCount: number;
+  };
+  leaderboards: {
+    overall: StudentLeaderboardItem[];
+    female: StudentLeaderboardItem[];
+    male: StudentLeaderboardItem[];
+  };
+}
+
+export interface StudentVoteResponse {
+  success: boolean;
+  winner: PublicStudentProfile;
+  loser: PublicStudentProfile;
+  delta: number;
+  auth: {
+    isVerified: boolean;
+    freeVotesUsed: number;
+    freeVotesLimit: number;
+    freeVotesRemaining: number | null;
+    requiresAuth: boolean;
+  };
+}
+
+export interface MyStudentSubmission {
+  id: string;
+  name: string;
+  gender: StudentGender;
+  photo: string;
+  instagram: string | null;
+  relationType: StudentRelationType;
+  status: StudentModerationStatus;
+  rejectionReason: string | null;
+  eloRating: number;
+  wins: number;
+  winPercent: number;
+  rank: number | null;
+  createdAt: string;
+}
+
+export interface AdminStudentReport {
+  id: string;
+  profileId: string;
+  reason: string;
+  details: string | null;
+  reporterEmail: string | null;
+  status: 'OPEN' | 'RESOLVED';
+  createdAt: string;
+}
+
+export interface AdminStudentProfile {
+  id: string;
+  name: string;
+  gender: StudentGender;
+  photo: string;
+  instagram: string | null;
+  relationType: StudentRelationType;
+  consentConfirmed: boolean;
+  uploaderEmail: string;
+  status: StudentModerationStatus;
+  rejectionReason: string | null;
+  eloRating: number;
+  wins: number;
+  losses: number;
+  impressions: number;
+  winPercent: number;
+  openReportsCount: number;
+  reports: AdminStudentReport[];
+  createdAt: string;
+}
+
+export interface AdminStudentsListResponse {
+  profiles: AdminStudentProfile[];
+  counts: {
+    pending: number;
+    approved: number;
+    rejected: number;
+    reported: number;
+  };
+}

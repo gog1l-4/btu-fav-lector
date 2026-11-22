@@ -29,6 +29,62 @@ export async function sendEmail({ to, subject, html }: SendEmailParams): Promise
   }
 }
 
+export async function sendOtpEmail({
+  to,
+  subject,
+  html,
+}: SendEmailParams): Promise<{ delivered: boolean; devMode?: boolean; error?: string }> {
+  if (!resend) {
+    console.log(`\n[OTP Email Preview] -> To: ${to} | Subject: ${subject}`);
+    console.log(html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+    console.log('---');
+    return { delivered: false, devMode: true };
+  }
+
+  try {
+    const result = await resend.emails.send({
+      from: env.resendFromEmail,
+      to,
+      subject,
+      html,
+    });
+    if (result.error) {
+      console.error('[Resend OTP Error]', result.error);
+      return { delivered: false, error: result.error.message || 'მეილის გაგზავნა ვერ მოხერხდა' };
+    }
+    return { delivered: true };
+  } catch (err: any) {
+    console.error('[Resend OTP Exception]', err);
+    return { delivered: false, error: err?.message || 'მეილის გაგზავნა ვერ მოხერხდა' };
+  }
+}
+
+export function buildStudentOtpEmailHtml(code: string): string {
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; background: #0B0D12; color: #F5F5F4; border-radius: 24px; border: 1px solid #2A2620;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span style="display: inline-block; padding: 6px 16px; background: rgba(216,190,147,0.14); border: 1px solid rgba(216,190,147,0.35); color: #E6CFA6; font-weight: 800; border-radius: 999px; font-size: 13px; letter-spacing: 0.08em;">
+          SPACEUNI • BTU
+        </span>
+      </div>
+      <h2 style="margin: 0 0 12px; font-size: 22px; text-align: center; color: #FFFFFF;">
+        შენი ვერიფიკაციის კოდი
+      </h2>
+      <p style="margin: 0 0 24px; font-size: 14px; line-height: 1.6; text-align: center; color: #A8A29E;">
+        შეიყვანე ეს 6-ნიშნა კოდი <strong>spaceuni.online</strong>-ზე, რომ დაადასტურო BTU სტუდენტის სტატუსი.
+      </p>
+      <div style="margin: 0 auto 24px; padding: 20px; background: #141720; border: 1px solid rgba(216,190,147,0.4); border-radius: 16px; text-align: center;">
+        <span style="font-size: 36px; font-weight: 900; letter-spacing: 10px; color: #E8D3AD; font-family: monospace;">
+          ${code}
+        </span>
+      </div>
+      <p style="margin: 0; font-size: 12px; text-align: center; color: #78716C;">
+        კოდი აქტიურია 10 წუთის განმავლობაში. თუ ეს მოთხოვნა შენ არ გამოგიგზავნია, უბრალოდ დააიგნორე ეს წერილი.
+      </p>
+    </div>
+  `;
+}
+
 export function buildVerificationEmailHtml(name: string, verifyUrl: string, isOfficialStudentEmail: boolean): string {
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #0f172a; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px;">

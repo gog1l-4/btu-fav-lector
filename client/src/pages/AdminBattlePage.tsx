@@ -18,6 +18,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { AdminStudentModeration } from '../components/students/AdminStudentModeration';
 import { useToast } from '../context/ToastContext';
 import type { LectorBattle } from '../types';
 
@@ -41,8 +42,20 @@ export function AdminBattlePage() {
   const [pinInput, setPinInput] = useState('');
   const [checkingPin, setCheckingPin] = useState(false);
 
+  const [adminTab, setAdminTab] = useState<'lectors' | 'students'>('lectors');
+  const [studentCounts, setStudentCounts] = useState({ pending: 0, approved: 0, rejected: 0, reported: 0 });
   const [battles, setBattles] = useState<LectorBattle[]>([]);
   const [loadingBattles, setLoadingBattles] = useState(false);
+
+  useEffect(() => {
+    if (!isPinValid || !pin) return;
+    fetch('/api/students/admin/list', { headers: { 'x-admin-pin': pin } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.counts) setStudentCounts(data.counts);
+      })
+      .catch(() => {});
+  }, [isPinValid, pin]);
 
   // Form states
   const [title, setTitle] = useState('🔥 BTU: კვირის ბრძოლა');
@@ -482,7 +495,42 @@ export function AdminBattlePage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto w-full px-4 py-8 space-y-10 flex-1">
+      <main className="max-w-6xl mx-auto w-full px-4 py-6 sm:py-8 space-y-8 flex-1">
+        {/* Admin Section Tabs */}
+        <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-900/90 border border-slate-800 max-w-md">
+          <button
+            onClick={() => setAdminTab('lectors')}
+            className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+              adminTab === 'lectors'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Flame className="w-4 h-4" />
+            <span>ლექტორები</span>
+          </button>
+          <button
+            onClick={() => setAdminTab('students')}
+            className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+              adminTab === 'students'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>სტუდენტები</span>
+            {(studentCounts.pending > 0 || studentCounts.reported > 0) && (
+              <span className="px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black">
+                {studentCounts.pending + studentCounts.reported}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {adminTab === 'students' ? (
+          <AdminStudentModeration adminPin={pin} onCountsChange={setStudentCounts} />
+        ) : (
+          <>
         {/* SECTION 1: CREATE NEW BATTLE */}
         <section className="bg-slate-900/70 border border-slate-800/90 rounded-3xl p-6 sm:p-8 backdrop-blur-md shadow-xl">
           <div className="flex items-center gap-2 mb-6">
@@ -1055,6 +1103,8 @@ export function AdminBattlePage() {
             </div>
           )}
         </section>
+          </>
+        )}
       </main>
     </div>
   );

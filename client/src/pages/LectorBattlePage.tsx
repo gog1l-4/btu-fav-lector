@@ -23,9 +23,11 @@ import {
   Zap,
 } from 'lucide-react';
 import { apiRequest } from '../api/client';
+import { StudentArena } from '../components/students/StudentArena';
 import { useSocket } from '../context/SocketContext';
 import { useToast } from '../context/ToastContext';
 import type { BattleFeedResponse, LeaderboardItem, LectorBattle } from '../types';
+import { getStudentEmail } from '../utils/studentAuth';
 import { getOrCreateVoterId } from '../utils/voterId';
 
 function cleanPhotoUrl(url?: string | null): string {
@@ -101,9 +103,38 @@ export function LectorBattlePage() {
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(false);
 
+  // Section switcher: Lectors vs Students
+  const [section, setSection] = useState<'lectors' | 'students'>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('section') === 'students' ? 'students' : 'lectors';
+    } catch {
+      return 'lectors';
+    }
+  });
+  const [studentEmail, setStudentEmail] = useState<string | null>(() => getStudentEmail());
+  const [openStudentAccountCounter, setOpenStudentAccountCounter] = useState(0);
+
   // Tab & Modal views
   const [activeTab, setActiveTab] = useState<'main' | 'rating' | 'stats' | 'about'>('main');
   const [modalView, setModalView] = useState<'rating' | 'stats' | 'about' | null>(null);
+
+  function handleSectionChange(next: 'lectors' | 'students') {
+    setSection(next);
+    setModalView(null);
+    setActiveTab('main');
+    try {
+      const url = new URL(window.location.href);
+      if (next === 'students') {
+        url.searchParams.set('section', 'students');
+      } else {
+        url.searchParams.delete('section');
+      }
+      window.history.replaceState({}, '', url.toString());
+    } catch {
+      // Ignore history API errors
+    }
+  }
 
   const { socket } = useSocket();
   const { showToast } = useToast();
@@ -236,7 +267,7 @@ export function LectorBattlePage() {
     }
   }
 
-  if (loading && !currentBattle) {
+  if (section === 'lectors' && loading && !currentBattle) {
     return (
       <div className="min-h-screen bg-[#0B0D12] flex flex-col items-center justify-center p-4">
         <div className="w-14 h-14 rounded-full bg-[#181B24] border border-[#C8A97E]/30 flex items-center justify-center animate-pulse">
@@ -328,9 +359,26 @@ export function LectorBattlePage() {
               <ChevronDown className="w-3 h-3 text-stone-500" />
             </div>
 
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-stone-300">
+            <button
+              type="button"
+              onClick={() => {
+                if (section !== 'students') {
+                  handleSectionChange('students');
+                }
+                setOpenStudentAccountCounter((c) => c + 1);
+              }}
+              title={studentEmail ? `BTU: ${studentEmail}` : 'BTU სტუდენტური ანგარიში'}
+              className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full border flex items-center justify-center transition cursor-pointer ${
+                studentEmail
+                  ? 'bg-[#D8BE93]/15 border-[#D8BE93]/45 text-[#E8D3AD]'
+                  : 'bg-white/10 hover:bg-white/15 border-white/15 text-stone-300'
+              }`}
+            >
               <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </div>
+              {studentEmail && (
+                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#0B0D12]" />
+              )}
+            </button>
           </div>
         </div>
 
@@ -385,8 +433,48 @@ export function LectorBattlePage() {
         </div>
       </header>
 
+      {/* PROMINENT 2-SECTION SWITCHER: ლექტორები | სტუდენტები */}
+      <div className="relative z-20 pt-4 sm:pt-7 px-4 flex justify-center">
+        <div className="inline-grid grid-cols-2 p-1 rounded-full bg-[#131620] border border-white/[0.1] shadow-2xl w-full max-w-xs sm:max-w-sm">
+          <button
+            onClick={() => handleSectionChange('lectors')}
+            className={`py-2.5 px-4 rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer font-title ${
+              section === 'lectors'
+                ? 'bg-[#D8BE93] text-stone-950 shadow-lg shadow-[#D8BE93]/20'
+                : 'text-stone-400 hover:text-white'
+            }`}
+          >
+            <GraduationCap className="w-4 h-4" />
+            <span>ლექტორები</span>
+          </button>
+          <button
+            onClick={() => handleSectionChange('students')}
+            className={`py-2.5 px-4 rounded-full text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer font-title ${
+              section === 'students'
+                ? 'bg-[#D8BE93] text-stone-950 shadow-lg shadow-[#D8BE93]/20'
+                : 'text-stone-400 hover:text-white'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>სტუდენტები</span>
+          </button>
+        </div>
+      </div>
+
+      {section === 'students' ? (
+        <StudentArena
+          externalModal={modalView}
+          onCloseExternalModal={() => {
+            setModalView(null);
+            setActiveTab('main');
+          }}
+          onAuthChange={setStudentEmail}
+          openAccountTrigger={openStudentAccountCounter}
+        />
+      ) : (
+        <>
       {/* HERO SECTION */}
-      <section className="relative z-10 pt-4 sm:pt-12 pb-4 sm:pb-6 px-4 text-center max-w-4xl mx-auto">
+      <section className="relative z-10 pt-3 sm:pt-7 pb-4 sm:pb-6 px-4 text-center max-w-4xl mx-auto">
         <div className="inline-block tracking-widest uppercase text-[10px] sm:text-[11px] font-bold text-[#C8A97E] mb-2 sm:mb-3">
           BTU BATTLE
         </div>
@@ -723,6 +811,8 @@ export function LectorBattlePage() {
           </aside>
         </div>
       </main>
+        </>
+      )}
 
       {/* FOOTER */}
       <footer className="border-t border-white/[0.06] bg-[#0A0C10] py-6 text-center text-xs text-stone-500 mt-8">
@@ -736,7 +826,7 @@ export function LectorBattlePage() {
       </footer>
 
       {/* MODAL WINDOWS FOR: რეიტინგი, სტატისტიკა, შესახებ (100% REAL!) */}
-      {modalView && (
+      {section === 'lectors' && modalView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
           <div className="relative w-full max-w-lg bg-[#12151D] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-5">
             {/* Modal Header */}
