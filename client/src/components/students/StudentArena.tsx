@@ -97,24 +97,43 @@ function StudentAvatar({ src, name, size = 'sm' }: { src: string; name: string; 
   );
 }
 
+export const STUDENTS_FEED_CACHE_KEY = 'spaceuni_students_feed_v1';
+
+function readCachedStudentsFeed(expectedFilter: StudentFilter): StudentFeedResponse | null {
+  try {
+    const raw = sessionStorage.getItem(STUDENTS_FEED_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { filter?: StudentFilter; data?: StudentFeedResponse };
+    if (parsed?.data && parsed.filter === expectedFilter) {
+      return parsed.data;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function StudentArena({
   externalModal,
   onCloseExternalModal,
   onAuthChange,
   openAccountTrigger,
 }: StudentArenaProps) {
-  const storedFilter = getStoredStudentFilter();
+  const [storedFilter] = useState<StudentFilter | null>(() => getStoredStudentFilter());
   const [filter, setFilter] = useState<StudentFilter>(storedFilter || 'ALL');
   const [needsInitialFilterPick, setNeedsInitialFilterPick] = useState<boolean>(!storedFilter);
   const [showFilterSettings, setShowFilterSettings] = useState(false);
 
-  const [feed, setFeed] = useState<StudentFeedResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [initialStudentCache] = useState<StudentFeedResponse | null>(() =>
+    readCachedStudentsFeed(storedFilter || 'ALL')
+  );
+  const [feed, setFeed] = useState<StudentFeedResponse | null>(() => initialStudentCache);
+  const [loading, setLoading] = useState(!initialStudentCache);
   const [voting, setVoting] = useState(false);
   const [justVoted, setJustVoted] = useState<{
     winnerId: string;
-    student1Percent: number;
-    student2Percent: number;
+    student1Percent?: number;
+    student2Percent?: number;
   } | null>(null);
 
   const [leaderboardTab, setLeaderboardTab] = useState<'overall' | 'female' | 'male'>('overall');
@@ -135,19 +154,35 @@ export function StudentArena({
   const { socket } = useSocket();
   const { showToast } = useToast();
 
+  const fetchFeedData = useCallback(
+    async (overrideFilter?: StudentFilter): Promise<StudentFeedResponse> => {
+      const activeFilter = overrideFilter ?? filter;
+      const params = new URLSearchParams({
+        filter: activeFilter,
+        voterId,
+      });
+      if (lastGenderRef.current) {
+        params.set('lastGender', lastGenderRef.current);
+      }
+      const data = await studentApiRequest<StudentFeedResponse>(`/feed?${params.toString()}`);
+      try {
+        sessionStorage.setItem(
+          STUDENTS_FEED_CACHE_KEY,
+          JSON.stringify({ filter: activeFilter, data })
+        );
+      } catch {
+        // Ignore storage quota errors
+      }
+      return data;
+    },
+    [filter, voterId]
+  );
+
   const loadFeed = useCallback(
     async (overrideFilter?: StudentFilter, silent = false) => {
       try {
         if (!silent) setLoading(true);
-        const activeFilter = overrideFilter ?? filter;
-        const params = new URLSearchParams({
-          filter: activeFilter,
-          voterId,
-        });
-        if (lastGenderRef.current) {
-          params.set('lastGender', lastGenderRef.current);
-        }
-        const data = await studentApiRequest<StudentFeedResponse>(`/feed?${params.toString()}`);
+        const data = await fetchFeedData(overrideFilter);
         setFeed(data);
         setJustVoted(null);
         if (data.pair?.gender) {
@@ -162,11 +197,11 @@ export function StudentArena({
         if (!silent) setLoading(false);
       }
     },
-    [filter, voterId, onAuthChange, showToast]
+    [fetchFeedData, onAuthChange, showToast]
   );
 
   useEffect(() => {
-    loadFeed();
+    loadFeed(undefined, Boolean(feed));
   }, [filter]);
 
   // Listen to real-time updates via Socket.IO (refresh leaderboard & stats silently)
@@ -223,6 +258,17 @@ export function StudentArena({
       return;
     }
 
+    const activePair = feed.pair;
+
+    // 0ms instant optimistic highlight + confetti on thumb tap!
+    setJustVoted({ winnerId: winner.id });
+    confetti({
+      particleCount: 35,
+      spread: 52,
+      origin: { y: 0.65 },
+      colors: ['#D8BE93', '#C8A97E', '#FFFFFF'],
+    });
+
     try {
       setVoting(true);
       const res = await studentApiRequest<StudentVoteResponse>('/vote', {
@@ -234,14 +280,7 @@ export function StudentArena({
         }),
       });
 
-      confetti({
-        particleCount: 45,
-        spread: 60,
-        origin: { y: 0.65 },
-        colors: ['#D8BE93', '#C8A97E', '#FFFFFF'],
-      });
-
-      const s1IsWinner = feed.pair.student1.id === winner.id;
+      const s1IsWinner = activePair.student1.id === winner.id;
       const s1WinPct = s1IsWinner ? res.winner.winPercent : res.loser.winPercent;
       const s2WinPct = s1IsWinner ? res.loser.winPercent : res.winner.winPercent;
 
@@ -251,14 +290,26 @@ export function StudentArena({
         student2Percent: s2WinPct,
       });
 
-      // Advance smoothly after short celebratory reveal
-      setTimeout(async () => {
-        await loadFeed(undefined, true);
-        if (res.auth.requiresAuth) {
-          setOtpModal({ open: true, reason: 'vote_limit' });
+      // Fetch the next pair IN PARALLEL with the short 450ms reveal animation
+      const [nextData] = await Promise.all([
+        fetchFeedData().catch(() => null),
+        new Promise((resolve) => setTimeout(resolve, 450)),
+      ]);
+
+      if (nextData) {
+        setFeed(nextData);
+        if (nextData.pair?.gender) {
+          lastGenderRef.current = nextData.pair.gender;
         }
-      }, 950);
+        onAuthChange?.(nextData.auth.isVerified ? nextData.auth.email : null);
+      }
+      setJustVoted(null);
+
+      if (res.auth.requiresAuth) {
+        setOtpModal({ open: true, reason: 'vote_limit' });
+      }
     } catch (err: any) {
+      setJustVoted(null);
       if (err?.code === 'BTU_AUTH_REQUIRED' || err?.status === 401) {
         setOtpModal({ open: true, reason: 'vote_limit' });
         return;
@@ -512,7 +563,7 @@ export function StudentArena({
               <div className="relative">
                 {/* Soft Gate Blur Overlay after 3 Free Votes */}
                 {feed?.auth.requiresAuth && (
-                  <div className="absolute inset-0 z-30 rounded-3xl bg-[#0B0D12]/80 backdrop-blur-md border border-[#D8BE93]/35 flex flex-col items-center justify-center p-6 text-center space-y-4 shadow-2xl">
+                  <div className="absolute inset-0 z-30 rounded-3xl bg-[#0B0D12]/90 sm:bg-[#0B0D12]/80 sm:backdrop-blur-md border border-[#D8BE93]/35 flex flex-col items-center justify-center p-6 text-center space-y-4 shadow-2xl">
                     <div className="w-14 h-14 rounded-2xl bg-[#D8BE93]/15 border border-[#D8BE93]/40 text-[#D8BE93] flex items-center justify-center">
                       <Lock className="w-7 h-7" />
                     </div>
@@ -581,7 +632,7 @@ export function StudentArena({
                               e.stopPropagation();
                               setReportTarget({ id: student.id, name: student.name });
                             }}
-                            className="absolute top-2 right-2 sm:top-3.5 sm:right-3.5 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-black/45 hover:bg-black/75 border border-white/10 text-stone-400 hover:text-rose-400 flex items-center justify-center transition cursor-pointer backdrop-blur-sm"
+                            className="absolute top-2 right-2 sm:top-3.5 sm:right-3.5 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-black/55 hover:bg-black/80 border border-white/10 text-stone-400 hover:text-rose-400 flex items-center justify-center transition cursor-pointer"
                           >
                             <Flag className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           </button>
@@ -789,7 +840,7 @@ export function StudentArena({
 
       {/* INFO MODALS (Top 20 Rating / Stats / About for Students) */}
       {(isRatingModalOpen || isStatsModalOpen || isAboutModalOpen) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 sm:backdrop-blur-sm">
           <div className="relative w-full max-w-lg bg-[#12151D] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2.5">

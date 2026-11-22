@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
 import {
   BarChart3,
@@ -23,15 +23,12 @@ import {
   Zap,
 } from 'lucide-react';
 import { apiRequest } from '../api/client';
+import { StudentArena, STUDENTS_FEED_CACHE_KEY } from '../components/students/StudentArena';
 import { useSocket } from '../context/SocketContext';
 import { useToast } from '../context/ToastContext';
-import type { BattleFeedResponse, LeaderboardItem, LectorBattle } from '../types';
-import { getStudentEmail } from '../utils/studentAuth';
+import type { BattleFeedResponse, LeaderboardItem, LectorBattle, StudentFeedResponse } from '../types';
+import { getStoredStudentFilter, getStudentEmail, studentApiRequest } from '../utils/studentAuth';
 import { getOrCreateVoterId } from '../utils/voterId';
-
-const StudentArena = lazy(() =>
-  import('../components/students/StudentArena').then((m) => ({ default: m.StudentArena }))
-);
 
 const FEED_CACHE_KEY = 'spaceuni_battles_feed_v2';
 
@@ -105,7 +102,7 @@ function LaurelRight() {
 }
 
 export function LectorBattlePage() {
-  const initialCache = readCachedFeed();
+  const [initialCache] = useState<BattleFeedResponse | null>(() => readCachedFeed());
   const [battles, setBattles] = useState<(LectorBattle & { hasVoted?: boolean; userVote?: number | null })[]>(
     () => initialCache?.battles || []
   );
@@ -124,6 +121,7 @@ export function LectorBattlePage() {
   );
   const [loading, setLoading] = useState(!initialCache);
   const [voting, setVoting] = useState(false);
+  const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null);
 
   // Section switcher: Lectors vs Students
   const [section, setSection] = useState<'lectors' | 'students'>(() => {
@@ -162,11 +160,11 @@ export function LectorBattlePage() {
   const { showToast } = useToast();
   const voterId = getOrCreateVoterId();
 
-  // 1. Fetch real feed data
+  // 1. Fetch real feed data + silently prefetch Students feed so tapping "სტუდენტები" is instant
   useEffect(() => {
     async function loadFeed() {
       try {
-        if (!readCachedFeed()) setLoading(true);
+        if (!initialCache) setLoading(true);
         const data = await apiRequest<BattleFeedResponse>(`/battles/feed?voterId=${voterId}`);
         if (data.battles && data.battles.length > 0) {
           setBattles(data.battles);
@@ -183,7 +181,7 @@ export function LectorBattlePage() {
           // Ignore storage quota errors
         }
       } catch (err: any) {
-        if (!readCachedFeed()) {
+        if (!initialCache) {
           showToast(err.message || 'მონაცემების ჩატვირთვა ვერ მოხერხდა', 'error');
         }
       } finally {
@@ -192,6 +190,24 @@ export function LectorBattlePage() {
     }
 
     loadFeed();
+
+    // Background prefetch Students feed so switching tabs has 0ms network delay
+    const prefetchTimer = setTimeout(() => {
+      const f = getStoredStudentFilter() || 'ALL';
+      studentApiRequest<StudentFeedResponse>(
+        `/feed?filter=${f}&voterId=${encodeURIComponent(voterId)}`
+      )
+        .then((studentData) => {
+          try {
+            sessionStorage.setItem(STUDENTS_FEED_CACHE_KEY, JSON.stringify({ filter: f, data: studentData }));
+          } catch {
+            // Ignore
+          }
+        })
+        .catch(() => {});
+    }, 300);
+
+    return () => clearTimeout(prefetchTimer);
   }, [voterId]);
 
   // Current battle
@@ -219,9 +235,43 @@ export function LectorBattlePage() {
     };
   }, [socket]);
 
-  // 3. Handle Voting
+  // 3. Handle Voting (0ms optimistic instant feedback)
   async function handleVote(lectorNumber: 1 | 2) {
     if (!currentBattle || voting || currentBattle.hasVoted) return;
+
+    const targetId = currentBattle.id;
+    const prevSnapshot = currentBattle;
+
+    // Instant optimistic UI update (0ms latency on mobile tap!)
+    const nextV1 = currentBattle.lector1Votes + (lectorNumber === 1 ? 1 : 0);
+    const nextV2 = currentBattle.lector2Votes + (lectorNumber === 2 ? 1 : 0);
+    const nextTotal = nextV1 + nextV2;
+    const nextP1 = nextTotal > 0 ? Math.round((nextV1 / nextTotal) * 100) : 50;
+    const nextP2 = nextTotal > 0 ? 100 - nextP1 : 50;
+
+    setBattles((prev) =>
+      prev.map((b) =>
+        b.id === targetId
+          ? {
+              ...b,
+              lector1Votes: nextV1,
+              lector2Votes: nextV2,
+              totalVotes: nextTotal,
+              lector1Percent: nextP1,
+              lector2Percent: nextP2,
+              hasVoted: true,
+              userVote: lectorNumber,
+            }
+          : b
+      )
+    );
+
+    confetti({
+      particleCount: 45,
+      spread: 55,
+      origin: { y: 0.65 },
+      colors: ['#D8BE93', '#C8A97E', '#FFFFFF', '#E7D0AB'],
+    });
 
     try {
       setVoting(true);
@@ -230,7 +280,7 @@ export function LectorBattlePage() {
         battle: LectorBattle;
         hasVoted: boolean;
         userVote: number;
-      }>(`/battles/${currentBattle.id}/vote`, {
+      }>(`/battles/${targetId}/vote`, {
         method: 'POST',
         body: JSON.stringify({
           selectedLector: lectorNumber,
@@ -238,25 +288,18 @@ export function LectorBattlePage() {
         }),
       });
 
-      // Update battle locally
       setBattles((prev) =>
         prev.map((b) =>
-          b.id === currentBattle.id
+          b.id === targetId
             ? { ...b, ...res.battle, hasVoted: true, userVote: lectorNumber }
             : b
         )
       );
 
-      // Gold celebratory confetti
-      confetti({
-        particleCount: 65,
-        spread: 60,
-        origin: { y: 0.65 },
-        colors: ['#D8BE93', '#C8A97E', '#FFFFFF', '#E7D0AB'],
-      });
-
       showToast('არჩევანი მიღებულია! ✨', 'success');
     } catch (err: any) {
+      // Roll back optimistic state on error
+      setBattles((prev) => prev.map((b) => (b.id === targetId ? prevSnapshot : b)));
       showToast(err.message || 'ხმის მიცემა ვერ მოხერხდა', 'error');
     } finally {
       setVoting(false);
@@ -311,13 +354,17 @@ export function LectorBattlePage() {
 
   return (
     <div className="min-h-screen bg-[#0B0D12] text-stone-100 flex flex-col selection:bg-[#C8A97E] selection:text-stone-950 overflow-x-hidden font-sans">
-      {/* Subtle Warm Ambient Glow */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[550px] bg-gradient-to-b from-[#C8A97E]/[0.04] via-[#1A1D27]/20 to-transparent blur-[140px]" />
-      </div>
+      {/* Subtle Warm Ambient Glow (Pure CSS radial-gradient — zero mobile GPU blur lag) */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(ellipse 75% 42% at 50% 0%, rgba(200, 169, 126, 0.08) 0%, rgba(26, 29, 39, 0.14) 45%, transparent 72%)',
+        }}
+      />
 
       {/* TOP HEADER NAVBAR */}
-      <header className="sticky top-0 z-50 w-full border-b border-white/[0.08] bg-[#0B0D12]/95 backdrop-blur-md">
+      <header className="sticky top-0 z-50 w-full border-b border-white/[0.08] bg-[#0B0D12]/98 sm:bg-[#0B0D12]/95 sm:backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 sm:h-20 flex items-center justify-between">
           {/* Left Brand */}
           <div
@@ -491,23 +538,15 @@ export function LectorBattlePage() {
       </div>
 
       {section === 'students' ? (
-        <Suspense
-          fallback={
-            <div className="flex-1 flex items-center justify-center py-24">
-              <div className="w-10 h-10 rounded-full border-2 border-[#D8BE93]/30 border-t-[#D8BE93] animate-spin" />
-            </div>
-          }
-        >
-          <StudentArena
-            externalModal={modalView}
-            onCloseExternalModal={() => {
-              setModalView(null);
-              setActiveTab('main');
-            }}
-            onAuthChange={setStudentEmail}
-            openAccountTrigger={openStudentAccountCounter}
-          />
-        </Suspense>
+        <StudentArena
+          externalModal={modalView}
+          onCloseExternalModal={() => {
+            setModalView(null);
+            setActiveTab('main');
+          }}
+          onAuthChange={setStudentEmail}
+          openAccountTrigger={openStudentAccountCounter}
+        />
       ) : (
         <>
       {/* HERO SECTION */}
@@ -764,7 +803,7 @@ export function LectorBattlePage() {
           </div>
 
           {/* RIGHT / BELOW: LEADERBOARD SIDEBAR */}
-          <aside className="w-full lg:w-[350px] xl:w-[380px] bg-[#13161F]/90 border border-white/[0.08] rounded-3xl p-4 sm:p-6 shadow-2xl backdrop-blur-md space-y-4 sm:space-y-6">
+          <aside className="w-full lg:w-[350px] xl:w-[380px] bg-[#13161F] sm:bg-[#13161F]/90 border border-white/[0.08] rounded-3xl p-4 sm:p-6 shadow-2xl sm:backdrop-blur-md space-y-4 sm:space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-[#D8BE93]">
@@ -854,7 +893,31 @@ export function LectorBattlePage() {
       {/* FOOTER */}
       <footer className="border-t border-white/[0.06] bg-[#0A0C10] py-6 text-center text-xs text-stone-500 mt-8">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© 2026 spaceuni • BTU minimal premium platform</p>
+          <p>© 2026 spaceuni • BTU სტუდენტური პლატფორმა</p>
+          <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-stone-400">
+            <button
+              type="button"
+              onClick={() => setLegalModal('privacy')}
+              className="hover:text-[#D8BE93] transition cursor-pointer"
+            >
+              კონფიდენციალურობა
+            </button>
+            <span className="text-stone-700">•</span>
+            <button
+              type="button"
+              onClick={() => setLegalModal('terms')}
+              className="hover:text-[#D8BE93] transition cursor-pointer"
+            >
+              წესები და პირობები
+            </button>
+            <span className="text-stone-700">•</span>
+            <a
+              href="mailto:contact@spaceuni.online"
+              className="hover:text-[#D8BE93] transition"
+            >
+              contact@spaceuni.online
+            </a>
+          </div>
           <div className="flex items-center gap-2 text-stone-500">
             <Sparkles className="w-3.5 h-3.5 text-[#C8A97E]" />
             <span>ხმები განახლდება რეალურ დროში</span>
@@ -862,9 +925,53 @@ export function LectorBattlePage() {
         </div>
       </footer>
 
+      {/* LEGAL MODAL (Privacy Policy & Terms for transparency & trust) */}
+      {legalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 sm:backdrop-blur-sm">
+          <div className="relative w-full max-w-lg bg-[#12151D] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3.5">
+              <h3 className="text-base sm:text-lg font-bold text-white font-title">
+                {legalModal === 'privacy' ? 'კონფიდენციალურობის პოლიტიკა' : 'მოხმარების წესები და პირობები'}
+              </h3>
+              <button
+                onClick={() => setLegalModal(null)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-stone-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {legalModal === 'privacy' ? (
+              <div className="space-y-2.5 text-xs text-stone-300 leading-relaxed">
+                <p>
+                  <strong>spaceuni.online</strong> იცავს მომხმარებლების კონფიდენციალურობას. საუნივერსიტეტო ელ. ფოსტა (`@btu.edu.ge`) გამოიყენება მხოლოდ ერთჯერადი კოდით ვერიფიკაციისთვის და სპამისგან დაცვისთვის — ის არასდროს ქვეყნდება საჯაროდ და არ გადაეცემა მესამე პირებს.
+                </p>
+                <p>
+                  ყველა ხმა არის ანონიმური. სტუდენტის ატვირთული ფოტო გადის ადმინის მოდერაციას და მომხმარებელს ნებისმიერ დროს შეუძლია საკუთარი ფოტოს წაშლა ან წაშლის მოთხოვნის გაგზავნა (`🚩` ღილაკით ან მისამართზე <span className="text-[#D8BE93]">contact@spaceuni.online</span>).
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2.5 text-xs text-stone-300 leading-relaxed">
+                <p>
+                  <strong>spaceuni</strong> არის სტუდენტური გასართობი და პოზიტიური რეიტინგის პლატფორმა. აკრძალულია სხვისი ფოტოს ატვირთვა მისი წინასწარი თანხმობის გარეშე, შეურაცხმყოფელი ან არაშესაბამისი კონტენტის განთავსება.
+                </p>
+                <p>
+                  ნებისმიერი გასაჩივრებული ფოტო მოწმდება ადმინისტრაციის მიერ უმოკლეს დროში და მოთხოვნისთანავე იშლება პლატფორმიდან. დაგვიკავშირდით: <span className="text-[#D8BE93]">contact@spaceuni.online</span>.
+                </p>
+              </div>
+            )}
+            <button
+              onClick={() => setLegalModal(null)}
+              className="w-full py-3 rounded-2xl bg-[#D8BE93] hover:bg-[#C8A97E] text-stone-950 font-bold text-xs transition cursor-pointer"
+            >
+              გასაგებია
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* MODAL WINDOWS FOR: რეიტინგი, სტატისტიკა, შესახებ (100% REAL!) */}
       {section === 'lectors' && modalView && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 sm:backdrop-blur-sm">
           <div className="relative w-full max-w-lg bg-[#12151D] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-5">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-4">

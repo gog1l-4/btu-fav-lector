@@ -19,6 +19,16 @@
 }
 
 @layer base {
+  html, body {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button, a, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-[#0B0D12] text-stone-100 font-sans;
     font-family: 'BPGNinoMedium', 'Noto Sans Georgian', sans-serif;

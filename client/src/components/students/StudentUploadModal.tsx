@@ -118,7 +118,7 @@ export function StudentUploadModal({
       : 'ვადასტურებ, რომ ეს ჩემი მეგობრის ფოტოა და ის თანახმაა მონაწილეობაზე';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 sm:backdrop-blur-md overflow-y-auto">
       <div className="relative w-full max-w-lg bg-[#12151D] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-2xl my-auto max-h-[92vh] overflow-y-auto space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-3.5">

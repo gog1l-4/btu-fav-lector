@@ -49,7 +49,7 @@ export function StudentReportModal({ profile, onClose }: StudentReportModalProps
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 sm:backdrop-blur-md">
       <div className="relative w-full max-w-md bg-[#12151D] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-4">
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2.5">

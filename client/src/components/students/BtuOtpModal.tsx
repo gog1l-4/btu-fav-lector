@@ -113,7 +113,7 @@ export function BtuOtpModal({ isOpen, reason = 'vote_limit', onClose, onSuccess 
       : 'შედი შენი @btu.edu.ge ელ. ფოსტით 6-ნიშნა კოდით.';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 sm:backdrop-blur-md">
       <div className="relative w-full max-w-md bg-[#12151D] border border-[#D8BE93]/25 rounded-3xl p-6 shadow-2xl space-y-5">
         <button
           onClick={onClose}
