@@ -6,6 +6,13 @@ import { buildStudentOtpEmailHtml, sendOtpEmail } from '../config/mailer.js';
 import { prisma } from '../config/prisma.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { emitStudentUpdate } from '../socket/index.js';
+import {
+  getCachedPhoto,
+  invalidatePhotoCache,
+  parsePhotoToCacheEntry,
+  sendPhotoEntry,
+  setCachedPhoto,
+} from '../utils/photoCache.js';
 
 const router = Router();
 
@@ -113,15 +120,38 @@ function makePairKey(idA: string, idB: string): string {
   return idA < idB ? `${idA}:${idB}` : `${idB}:${idA}`;
 }
 
+const studentMetaSelect = {
+  id: true,
+  name: true,
+  gender: true,
+  instagram: true,
+  relationType: true,
+  consentConfirmed: true,
+  uploaderEmail: true,
+  status: true,
+  rejectionReason: true,
+  eloRating: true,
+  wins: true,
+  losses: true,
+  impressions: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+function studentPhotoUrl(id: string, updatedAt?: Date | string): string {
+  const ver = updatedAt ? new Date(updatedAt).getTime() : 1;
+  return `/api/students/photo/${id}?v=${ver}`;
+}
+
 function toPublicStudent(p: {
   id: string;
   name: string;
   gender: 'MALE' | 'FEMALE';
-  photo: string;
   instagram: string | null;
   eloRating: number;
   wins: number;
   losses: number;
+  updatedAt?: Date | string;
 }) {
   const totalMatches = p.wins + p.losses;
   const winPercent = totalMatches > 0 ? Math.round((p.wins / totalMatches) * 100) : 50;
@@ -129,7 +159,7 @@ function toPublicStudent(p: {
     id: p.id,
     name: p.name,
     gender: p.gender,
-    photo: cleanPhotoUrl(p.photo),
+    photo: studentPhotoUrl(p.id, p.updatedAt),
     instagram: p.instagram,
     eloRating: p.eloRating,
     wins: p.wins,
@@ -142,12 +172,12 @@ function buildPositiveLeaderboard(
     id: string;
     name: string;
     gender: 'MALE' | 'FEMALE';
-    photo: string;
     instagram: string | null;
     eloRating: number;
     wins: number;
     losses: number;
     createdAt: Date;
+    updatedAt: Date;
   }>,
   limit = 20
 ) {
@@ -221,6 +251,37 @@ function pickFairPair<
   // Randomize left vs right card placement
   return Math.random() < 0.5 ? [bestPair[0], bestPair[1]] : [bestPair[1], bestPair[0]];
 }
+
+// ==========================================
+// 0. CACHED BINARY PHOTO ENDPOINT
+// ==========================================
+
+router.get(
+  '/photo/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const ver = String(req.query.v || '1');
+    const cacheKey = `student:${id}:${ver}`;
+
+    const cached = getCachedPhoto(cacheKey);
+    if (cached) {
+      return sendPhotoEntry(res, cached);
+    }
+
+    const row = await prisma.studentProfile.findUnique({
+      where: { id },
+      select: { photo: true },
+    });
+
+    const entry = parsePhotoToCacheEntry(row?.photo);
+    if (!entry) {
+      return res.status(404).end();
+    }
+
+    setCachedPhoto(cacheKey, entry);
+    return sendPhotoEntry(res, entry);
+  })
+);
 
 // ==========================================
 // 1. @btu.edu.ge OTP AUTHENTICATION
@@ -365,6 +426,7 @@ router.get(
     const [myProfiles, allApproved] = await Promise.all([
       prisma.studentProfile.findMany({
         where: { uploaderEmail: studentEmail },
+        select: studentMetaSelect,
         orderBy: { createdAt: 'desc' },
       }),
       prisma.studentProfile.findMany({
@@ -388,7 +450,7 @@ router.get(
         id: p.id,
         name: p.name,
         gender: p.gender,
-        photo: cleanPhotoUrl(p.photo),
+        photo: studentPhotoUrl(p.id, p.updatedAt),
         instagram: p.instagram,
         relationType: p.relationType,
         status: p.status,
@@ -439,6 +501,7 @@ router.get(
     const [approvedProfiles, totalVotesCount, voterVotes] = await Promise.all([
       prisma.studentProfile.findMany({
         where: { status: 'APPROVED' },
+        select: studentMetaSelect,
         orderBy: [{ eloRating: 'desc' }, { wins: 'desc' }, { createdAt: 'asc' }],
       }),
       prisma.studentVote.count(),
@@ -564,8 +627,8 @@ router.post(
     }
 
     const [winner, loser] = await Promise.all([
-      prisma.studentProfile.findUnique({ where: { id: winnerId } }),
-      prisma.studentProfile.findUnique({ where: { id: loserId } }),
+      prisma.studentProfile.findUnique({ where: { id: winnerId }, select: studentMetaSelect }),
+      prisma.studentProfile.findUnique({ where: { id: loserId }, select: studentMetaSelect }),
     ]);
 
     if (!winner || !loser || winner.status !== 'APPROVED' || loser.status !== 'APPROVED') {
@@ -607,6 +670,7 @@ router.post(
     const [updatedWinner, updatedLoser] = await prisma.$transaction([
       prisma.studentProfile.update({
         where: { id: winner.id },
+        select: studentMetaSelect,
         data: {
           eloRating: newWinnerElo,
           wins: { increment: 1 },
@@ -615,6 +679,7 @@ router.post(
       }),
       prisma.studentProfile.update({
         where: { id: loser.id },
+        select: studentMetaSelect,
         data: {
           eloRating: newLoserElo,
           losses: { increment: 1 },
@@ -748,6 +813,7 @@ router.delete(
     }
 
     await prisma.studentProfile.delete({ where: { id } });
+    invalidatePhotoCache(`student:${id}:`);
     emitStudentUpdate({ type: 'deleted', id });
 
     res.json({ success: true, message: 'პროფილი წარმატებით წაიშალა' });
@@ -797,7 +863,8 @@ router.get(
   asyncHandler(async (_req: Request, res: Response) => {
     const profiles = await prisma.studentProfile.findMany({
       orderBy: { createdAt: 'desc' },
-      include: {
+      select: {
+        ...studentMetaSelect,
         reports: {
           orderBy: { createdAt: 'desc' },
         },
@@ -811,7 +878,7 @@ router.get(
         id: p.id,
         name: p.name,
         gender: p.gender,
-        photo: cleanPhotoUrl(p.photo),
+        photo: studentPhotoUrl(p.id, p.updatedAt),
         instagram: p.instagram,
         relationType: p.relationType,
         consentConfirmed: p.consentConfirmed,
@@ -901,6 +968,7 @@ router.delete(
   asyncHandler(async (req: Request, res: Response) => {
     const id = String(req.params.id);
     await prisma.studentProfile.delete({ where: { id } });
+    invalidatePhotoCache(`student:${id}:`);
     emitStudentUpdate({ type: 'deleted', id });
     res.json({ success: true });
   })

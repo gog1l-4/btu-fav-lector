@@ -7,6 +7,13 @@ import { env } from '../config/env.js';
 import { prisma } from '../config/prisma.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { emitBattleUpdate } from '../socket/index.js';
+import {
+  getCachedPhoto,
+  invalidatePhotoCache,
+  parsePhotoToCacheEntry,
+  sendPhotoEntry,
+  setCachedPhoto,
+} from '../utils/photoCache.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,14 +60,34 @@ function cleanPhotoUrl(url: string): string {
   return trimmed;
 }
 
+const battleMetaSelect = {
+  id: true,
+  title: true,
+  description: true,
+  lector1Name: true,
+  lector1Subject: true,
+  lector1Votes: true,
+  lector2Name: true,
+  lector2Subject: true,
+  lector2Votes: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+function battlePhotoUrl(id: string, slot: 1 | 2, updatedAt?: Date | string): string {
+  const ver = updatedAt ? new Date(updatedAt).getTime() : 1;
+  return `/api/battles/photo/${id}/${slot}?v=${ver}`;
+}
+
 function computeBattleStats(battle: any) {
   const totalVotes = (battle.lector1Votes || 0) + (battle.lector2Votes || 0);
   const lector1Percent = totalVotes > 0 ? Math.round((battle.lector1Votes / totalVotes) * 100) : 50;
   const lector2Percent = totalVotes > 0 ? 100 - lector1Percent : 50;
   return {
     ...battle,
-    lector1Photo: cleanPhotoUrl(battle.lector1Photo),
-    lector2Photo: cleanPhotoUrl(battle.lector2Photo),
+    lector1Photo: battlePhotoUrl(battle.id, 1, battle.updatedAt),
+    lector2Photo: battlePhotoUrl(battle.id, 2, battle.updatedAt),
     totalVotes,
     lector1Percent,
     lector2Percent,
@@ -74,6 +101,36 @@ function requireAdminPin(req: Request, res: Response, next: NextFunction) {
   }
   next();
 }
+
+// 0. Cached binary photo endpoint (replaces massive Base64 payloads in JSON feeds)
+router.get(
+  '/photo/:id/:slot',
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const slot = req.params.slot === '2' ? 2 : 1;
+    const ver = String(req.query.v || '1');
+    const cacheKey = `battle:${id}:${slot}:${ver}`;
+
+    const cached = getCachedPhoto(cacheKey);
+    if (cached) {
+      return sendPhotoEntry(res, cached);
+    }
+
+    const row = await prisma.lectorBattle.findUnique({
+      where: { id },
+      select: slot === 1 ? { lector1Photo: true } : { lector2Photo: true },
+    });
+
+    const rawPhoto = slot === 1 ? (row as any)?.lector1Photo : (row as any)?.lector2Photo;
+    const entry = parsePhotoToCacheEntry(rawPhoto);
+    if (!entry) {
+      return res.status(404).end();
+    }
+
+    setCachedPhoto(cacheKey, entry);
+    return sendPhotoEntry(res, entry);
+  })
+);
 
 // 1. PIN verification for admin login
 router.post('/verify-pin', (req: Request, res: Response) => {
@@ -308,20 +365,24 @@ router.get(
     const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || '';
     const voterIdentifier = voterId || ip;
 
-    let battles = await prisma.lectorBattle.findMany({
-      where: { isActive: true },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (battles.length === 0) {
-      battles = await prisma.lectorBattle.findMany({
+    // Single parallel DB round-trip, strictly EXCLUDING heavy photo blobs!
+    const [allBattlesRaw, userVotes, allVotesCount] = await Promise.all([
+      prisma.lectorBattle.findMany({
+        select: battleMetaSelect,
         orderBy: { createdAt: 'desc' },
-        take: 10,
-      });
-    }
+      }),
+      voterIdentifier
+        ? prisma.lectorVote.findMany({
+            where: { voterIdentifier },
+            select: { battleId: true, selectedLector: true },
+          })
+        : Promise.resolve([]),
+      prisma.lectorVote.count(),
+    ]);
 
-    if (battles.length === 0) {
-      // Auto-create initial battle with Alexandre Sborichikovi vs Alexandre Benashvili matching the mockup!
+    let allBattles = allBattlesRaw;
+
+    if (allBattles.length === 0) {
       const initial = await prisma.lectorBattle.create({
         data: {
           title: 'რომელია შენი ფავორიტი ლექტორი?',
@@ -336,20 +397,13 @@ router.get(
           lector2Votes: 128,
           isActive: true,
         },
+        select: battleMetaSelect,
       });
-      battles = [initial];
+      allBattles = [initial];
     }
 
-    // Get user votes across battles
-    const userVotes = await prisma.lectorVote.findMany({
-      where: {
-        voterIdentifier,
-      },
-      select: {
-        battleId: true,
-        selectedLector: true,
-      },
-    });
+    const activeBattles = allBattles.filter((b) => b.isActive);
+    const battles = activeBattles.length > 0 ? activeBattles : allBattles.slice(0, 10);
 
     const userVoteMap = new Map(userVotes.map((v) => [v.battleId, v.selectedLector]));
 
@@ -362,20 +416,20 @@ router.get(
       };
     });
 
-    // Calculate 100% REAL dynamic stats from database
-    const allBattles = await prisma.lectorBattle.findMany();
-    const allVotesCount = await prisma.lectorVote.count();
     const totalBattlesCount = allBattles.length;
-    
+
     // Calculate REAL leaderboard from battles data (NO FAKE / SUPPLEMENTARY DATA)
-    const lectorStatsMap = new Map<string, { 
-      name: string; 
-      subject: string; 
-      photo: string; 
-      votes: number; 
-      totalOpponentVotes: number;
-      battlesCount: number;
-    }>();
+    const lectorStatsMap = new Map<
+      string,
+      {
+        name: string;
+        subject: string;
+        photo: string;
+        votes: number;
+        totalOpponentVotes: number;
+        battlesCount: number;
+      }
+    >();
 
     for (const b of allBattles) {
       const v1 = b.lector1Votes || 0;
@@ -386,7 +440,7 @@ router.get(
         lectorStatsMap.set(b.lector1Name, {
           name: b.lector1Name,
           subject: b.lector1Subject,
-          photo: cleanPhotoUrl(b.lector1Photo),
+          photo: battlePhotoUrl(b.id, 1, b.updatedAt),
           votes: v1,
           totalOpponentVotes: v2,
           battlesCount: 1,
@@ -403,7 +457,7 @@ router.get(
         lectorStatsMap.set(b.lector2Name, {
           name: b.lector2Name,
           subject: b.lector2Subject,
-          photo: cleanPhotoUrl(b.lector2Photo),
+          photo: battlePhotoUrl(b.id, 2, b.updatedAt),
           votes: v2,
           totalOpponentVotes: v1,
           battlesCount: 1,
@@ -424,10 +478,8 @@ router.get(
 
     const dynamicLeaderboard = sortedLectors.map((l, index) => {
       const totalBattleVotes = l.votes + l.totalOpponentVotes;
-      // Real mathematical win percentage:
-      const percent = totalBattleVotes > 0 
-        ? Math.round((l.votes / totalBattleVotes) * 100) 
-        : 50;
+      const percent =
+        totalBattleVotes > 0 ? Math.round((l.votes / totalBattleVotes) * 100) : 50;
 
       return {
         id: `lector-${index + 1}`,
@@ -435,16 +487,17 @@ router.get(
         name: l.name,
         subject: l.subject,
         isCrown: index === 0,
-        percent: percent,
+        percent,
         votes: l.votes,
-        avatar: cleanPhotoUrl(l.photo),
+        avatar: l.photo,
       };
     });
 
     const totalLectorsCount = lectorStatsMap.size;
-    const realTotalVotes = allVotesCount > 0 
-      ? allVotesCount 
-      : allBattles.reduce((sum, b) => sum + (b.lector1Votes || 0) + (b.lector2Votes || 0), 0);
+    const realTotalVotes =
+      allVotesCount > 0
+        ? allVotesCount
+        : allBattles.reduce((sum, b) => sum + (b.lector1Votes || 0) + (b.lector2Votes || 0), 0);
 
     res.json({
       battles: computedBattles,
@@ -541,7 +594,8 @@ router.get(
   asyncHandler(async (_req: Request, res: Response) => {
     const battles = await prisma.lectorBattle.findMany({
       orderBy: { createdAt: 'desc' },
-      include: {
+      select: {
+        ...battleMetaSelect,
         _count: { select: { votes: true } },
       },
     });
@@ -681,6 +735,7 @@ router.post(
         lector2Photo: p2,
       },
     });
+    invalidatePhotoCache(`battle:${id}:`);
 
     const stats = computeBattleStats(updated);
     if (updated.isActive) {
@@ -716,6 +771,7 @@ router.delete(
   asyncHandler(async (req: Request, res: Response) => {
     const id = String(req.params.id);
     await prisma.lectorBattle.delete({ where: { id } });
+    invalidatePhotoCache(`battle:${id}:`);
     res.json({ success: true });
   })
 );

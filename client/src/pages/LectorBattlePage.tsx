@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
 import {
   BarChart3,
@@ -23,12 +23,26 @@ import {
   Zap,
 } from 'lucide-react';
 import { apiRequest } from '../api/client';
-import { StudentArena } from '../components/students/StudentArena';
 import { useSocket } from '../context/SocketContext';
 import { useToast } from '../context/ToastContext';
 import type { BattleFeedResponse, LeaderboardItem, LectorBattle } from '../types';
 import { getStudentEmail } from '../utils/studentAuth';
 import { getOrCreateVoterId } from '../utils/voterId';
+
+const StudentArena = lazy(() =>
+  import('../components/students/StudentArena').then((m) => ({ default: m.StudentArena }))
+);
+
+const FEED_CACHE_KEY = 'spaceuni_battles_feed_v2';
+
+function readCachedFeed(): BattleFeedResponse | null {
+  try {
+    const raw = sessionStorage.getItem(FEED_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as BattleFeedResponse) : null;
+  } catch {
+    return null;
+  }
+}
 
 function cleanPhotoUrl(url?: string | null): string {
   if (!url) return '';
@@ -91,16 +105,24 @@ function LaurelRight() {
 }
 
 export function LectorBattlePage() {
-  const [battles, setBattles] = useState<(LectorBattle & { hasVoted?: boolean; userVote?: number | null })[]>([]);
+  const initialCache = readCachedFeed();
+  const [battles, setBattles] = useState<(LectorBattle & { hasVoted?: boolean; userVote?: number | null })[]>(
+    () => initialCache?.battles || []
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [stats, setStats] = useState({
-    totalVotes: 0,
-    totalBattles: 0,
-    totalLectors: 0,
-    university: 'BTU',
-  });
-  const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(
+    () =>
+      initialCache?.stats || {
+        totalVotes: 0,
+        totalBattles: 0,
+        totalLectors: 0,
+        university: 'BTU',
+      }
+  );
+  const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>(
+    () => initialCache?.leaderboard || []
+  );
+  const [loading, setLoading] = useState(!initialCache);
   const [voting, setVoting] = useState(false);
 
   // Section switcher: Lectors vs Students
@@ -144,7 +166,7 @@ export function LectorBattlePage() {
   useEffect(() => {
     async function loadFeed() {
       try {
-        setLoading(true);
+        if (!readCachedFeed()) setLoading(true);
         const data = await apiRequest<BattleFeedResponse>(`/battles/feed?voterId=${voterId}`);
         if (data.battles && data.battles.length > 0) {
           setBattles(data.battles);
@@ -155,8 +177,15 @@ export function LectorBattlePage() {
         if (data.leaderboard) {
           setLeaderboard(data.leaderboard);
         }
+        try {
+          sessionStorage.setItem(FEED_CACHE_KEY, JSON.stringify(data));
+        } catch {
+          // Ignore storage quota errors
+        }
       } catch (err: any) {
-        showToast(err.message || 'მონაცემების ჩატვირთვა ვერ მოხერხდა', 'error');
+        if (!readCachedFeed()) {
+          showToast(err.message || 'მონაცემების ჩატვირთვა ვერ მოხერხდა', 'error');
+        }
       } finally {
         setLoading(false);
       }
@@ -462,15 +491,23 @@ export function LectorBattlePage() {
       </div>
 
       {section === 'students' ? (
-        <StudentArena
-          externalModal={modalView}
-          onCloseExternalModal={() => {
-            setModalView(null);
-            setActiveTab('main');
-          }}
-          onAuthChange={setStudentEmail}
-          openAccountTrigger={openStudentAccountCounter}
-        />
+        <Suspense
+          fallback={
+            <div className="flex-1 flex items-center justify-center py-24">
+              <div className="w-10 h-10 rounded-full border-2 border-[#D8BE93]/30 border-t-[#D8BE93] animate-spin" />
+            </div>
+          }
+        >
+          <StudentArena
+            externalModal={modalView}
+            onCloseExternalModal={() => {
+              setModalView(null);
+              setActiveTab('main');
+            }}
+            onAuthChange={setStudentEmail}
+            openAccountTrigger={openStudentAccountCounter}
+          />
+        </Suspense>
       ) : (
         <>
       {/* HERO SECTION */}
