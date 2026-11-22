@@ -13,6 +13,8 @@
     "start": "npm --prefix server run db:push && npm --prefix server run start",
     "db:push": "npm --prefix server run db:push",
     "db:seed": "npm --prefix server run db:seed",
+    "monitor": "node scripts/monitor.mjs",
+    "monitor:stats": "node scripts/monitor.mjs --stats",
     "install:all": "npm install && npm --prefix server install && npm --prefix client install"
   },
   "prisma": {

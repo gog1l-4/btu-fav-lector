@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import adminRoutes from './routes/admin.js';
+import analyticsRoutes, { trackVisitMiddleware } from './routes/analytics.js';
 import authRoutes from './routes/auth.js';
 import battlesRoutes from './routes/battles.js';
 import catalogRoutes from './routes/catalog.js';
@@ -28,7 +29,15 @@ const httpServer = http.createServer(app);
 
 initSocket(httpServer);
 
-app.use(compression({ threshold: 1024 }));
+app.use(
+  compression({
+    threshold: 1024,
+    filter: (req, res) => {
+      if (req.path.startsWith('/api/analytics/stream')) return false;
+      return compression.filter(req, res);
+    },
+  })
+);
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(
   cors({
@@ -38,6 +47,7 @@ app.use(
 );
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(trackVisitMiddleware);
 app.use(
   '/uploads',
   express.static(path.join(__dirname, '../public/uploads'), {
@@ -67,6 +77,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'swapu-api', timestamp: new Date().toISOString() });
 });
 
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api/battles', battlesRoutes);
 app.use('/api/students', studentsRoutes);
 app.use('/api/auth', authRoutes);
